@@ -44,6 +44,6 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageDestroy(): void {}
-  onForeground(): void {}
-  onBackground(): void {}
+  onForeground(): void { hilog.info(0x0000, TAG, "onForeground"); globalThis.foregroundTick = Date.now(); }
+  onBackground(): void { hilog.info(0x0000, TAG, "onBackground"); }
 }

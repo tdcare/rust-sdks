@@ -60,6 +60,9 @@ export class VideoCaptureService {
   // Frame throttling — camera outputs ~30fps but encoding handles ~10-15fps
   private lastProcessedTime: number = 0;
   private frameSkipCount: number = 0;
+
+  // Lifecycle recovery: detect foreground changes
+  private lastForegroundTick: number = 0;
   private readonly FRAME_INTERVAL_MS: number = 70; // ~14fps
 
   constructor(width: number = 640, height: number = 480) {
@@ -102,6 +105,9 @@ export class VideoCaptureService {
    * @param previewSurfaceId  Optional XComponent surface ID for local preview display
    */
   async initialize(context: common.Context, previewSurfaceId?: string): Promise<boolean> {
+    // Store for foreground recovery
+    globalThis.storedContext = context;
+    globalThis.storedPreviewSurfaceId = previewSurfaceId ?? '';
     this.context = context;
 
     try {
@@ -238,6 +244,24 @@ export class VideoCaptureService {
   /**
    * Stop video capture (disable frame processing, stop camera session).
    */
+  /**
+   * Restart camera after screen-off/on lifecycle event.
+   * Releases old resources and re-initializes the entire camera pipeline.
+   */
+  async restartCamera(): Promise<void> {
+    hilog.info(0x0000, TAG, 'Restarting camera after foreground recovery');
+    const ctx = globalThis.storedContext as common.Context | undefined;
+    const surfaceId = (globalThis.storedPreviewSurfaceId as string) || undefined;
+    if (!ctx) {
+      hilog.error(0x0000, TAG, 'Cannot restart: no stored context');
+      return;
+    }
+    await this.release();
+    this.initialized = false;
+    this.running = false;
+    await this.initialize(ctx, surfaceId);
+  }
+
   async stop(): Promise<void> {
     this.running = false;
     if (this.session !== null) {
@@ -368,6 +392,19 @@ export class VideoCaptureService {
    * 3. Push NV21 to LkVideoSource.captureFrameNv21() → I420
    */
   private handleImageArrival(): void {
+    // Check for foreground recovery (screen-off → screen-on)
+    const currentTick = (globalThis.foregroundTick as number) || 0;
+    if (currentTick > this.lastForegroundTick) {
+      this.lastForegroundTick = currentTick;
+      hilog.info(0x0000, TAG, 'Foreground detected, checking camera...');
+      // Schedule camera restart to avoid blocking imageArrival callback
+      setTimeout(() => {
+        this.restartCamera().catch((e: Error) => {
+          hilog.error(0x0000, TAG, 'Camera restart failed: %{public}s', e?.message ?? String(e));
+        });
+      }, 100);
+      return; // Skip processing this frame — camera will restart soon
+    }
     if (this.imageReceiver === null || !this.running) {
       if (this.frameCount === 0) {
         hilog.info(0x0000, TAG,
