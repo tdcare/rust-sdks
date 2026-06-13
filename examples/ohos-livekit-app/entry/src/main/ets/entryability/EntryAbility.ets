@@ -44,6 +44,17 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageDestroy(): void {}
-  onForeground(): void { hilog.info(0x0000, TAG, "onForeground"); globalThis.foregroundTick = Date.now(); }
+    onForeground(): void {
+    hilog.info(0x0000, TAG, 'onForeground');
+    globalThis.foregroundTick = Date.now();
+    const vc = globalThis.videoCaptureService as Record<string, Function> | undefined;
+    if (vc && vc['restartCamera']) {
+      setTimeout(() => {
+        (vc['restartCamera'] as () => Promise<void>)().catch((e: Error) => {
+          hilog.error(0x0000, TAG, 'Camera restart failed: %{public}s', e?.message ?? '');
+        });
+      }, 200);
+    }
+  }
   onBackground(): void { hilog.info(0x0000, TAG, "onBackground"); }
 }

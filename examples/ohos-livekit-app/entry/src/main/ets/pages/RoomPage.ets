@@ -80,7 +80,10 @@ struct RoomPage {
 
   private room: LkRoom | null = null;
   private audioCapture: AudioCaptureService = new AudioCaptureService();
-  private videoCapture: VideoCaptureService = new VideoCaptureService(640, 480);
+  private videoCapture: VideoCaptureService = (() => { const vc = new VideoCaptureService(640, 480); globalThis.videoCaptureService = vc; return vc; })();
+
+
+  
   private audioRender: AudioRenderService = new AudioRenderService();
   private videoRender: VideoRenderService = new VideoRenderService();
   private localAudioTrack: LkLocalAudioTrack | null = null;

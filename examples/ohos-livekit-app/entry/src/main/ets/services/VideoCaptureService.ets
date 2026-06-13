@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Video capture service using OHOS Camera Kit for real camera integration.
  *
  * Architecture:
@@ -62,7 +62,7 @@ export class VideoCaptureService {
   private frameSkipCount: number = 0;
 
   // Lifecycle recovery: detect foreground changes
-  private lastForegroundTick: number = 0;
+  private lastForegroundTick: number = Date.now();
   private readonly FRAME_INTERVAL_MS: number = 70; // ~14fps
 
   constructor(width: number = 640, height: number = 480) {
@@ -256,10 +256,19 @@ export class VideoCaptureService {
       hilog.error(0x0000, TAG, 'Cannot restart: no stored context');
       return;
     }
+    // Save the existing LkVideoSource — it's already published to the room.
+    // Creating a new one would break the publish pipeline.
+    const savedSource = this.source;
     await this.release();
+    this.source = savedSource;
     this.initialized = false;
     this.running = false;
     await this.initialize(ctx, surfaceId);
+    // initialize() may create a new source; restore to keep published track working
+    if (this.source !== savedSource) {
+      hilog.info(0x0000, TAG, 'Restoring saved LkVideoSource after restart');
+      this.source = savedSource;
+    }
   }
 
   async stop(): Promise<void> {
