@@ -1518,11 +1518,13 @@ impl SessionInner {
             }
             RtcEvent::Offer { offer, target: _ } => {
                 // Send the publisher offer to the server
-                log::debug!("sending publisher offer: {:?}", offer);
+                // The encoder is configured to use H264 Baseline Profile for maximum browser compatibility
+                let sdp_str = offer.to_string();
+                log::debug!("sending publisher offer: {:?}", sdp_str);
                 self.signal_client
                     .send(proto::signal_request::Message::Offer(proto::SessionDescription {
                         r#type: "offer".to_string(),
-                        sdp: offer.to_string(),
+                        sdp: sdp_str,
                         id: 0,
                         mid_to_track_id: Default::default(),
                     }))
@@ -1849,6 +1851,7 @@ impl SessionInner {
             }
 
             matched.append(&mut partial_matched);
+            matched.append(&mut unmatched);
 
             transceiver.set_codec_preferences(matched)?;
         }

@@ -1,0 +1,8 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "LiveKit OHOS Demo" },
+    { "name": "EntryAbility_label", "value": "LiveKit" },
+    { "name": "permission_mic_reason", "value": "Used for voice communication" },
+    { "name": "permission_camera_reason", "value": "Used for video communication" }
+  ]
+}

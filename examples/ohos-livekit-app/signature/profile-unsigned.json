@@ -1,0 +1,35 @@
+{
+    "version-name":  "2.0.0",
+    "version-code":  2,
+    "uuid":  "fe686e1b-3770-4824-a938-961b140a7c98",
+    "validity":  {
+                     "not-before":  1577836800,
+                     "not-after":  2145916800
+                 },
+    "type":  "debug",
+    "bundle-info":  {
+                        "developer-id":  "OpenHarmony",
+                        "development-certificate":  "-----BEGIN CERTIFICATE-----\nMIICPjCCAcWgAwIBAgIFAKrRbzswCgYIKoZIzj0EAwIwYzELMAkGA1UEBhMCQ04x\nFDASBgNVBAoMC09wZW5IYXJtb255MRkwFwYDVQQLDBBPcGVuSGFybW9ueSBUZWFt\nMSMwIQYDVQQDDBpPcGVuSGFybW9ueSBBcHBsaWNhdGlvbiBDQTAeFw0yNjA2MDEy\nMzM2MzFaFw0zNjA1MjkyMzM2MzFaMF4xCzAJBgNVBAYTAkNOMRQwEgYDVQQKDAtP\ncGVuSGFybW9ueTEZMBcGA1UECwwQT3Blbkhhcm1vbnkgVGVhbTEeMBwGA1UEAwwV\nTGl2ZUtpdCBPSE9TIERlbW8gQXBwMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE\nm0wBczZ/OgQ/U8Jd4m46s8hAmlWZmorLkUQGzxPW9ma+ob11fabsH3G+8MKW/0Gt\nS64r6bszNjZ0ggP5CT2Kb6NrMGkwHQYDVR0OBBYEFJypjvg+puA1AgiHJryYH6H9\nbmhZMAkGA1UdEwQCMAAwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUF\nBwMDMBgGDCsGAQQBj1sCgngBAwQIMAYCAQEKAQAwCgYIKoZIzj0EAwIDZwAwZAIw\nIh2DXI3fMsYiHsP8bHwNCpq8zHb0e0Fu/FYCW5tFDGzTOlVXkOqOjaqT04vEsii5\nAjAjWqB2pMwInSGnGWQ85B5JwWfbA64mbgQzC9zp0i/1qfq3kopgX4JOG69AFU4H\nS0g=\n-----END CERTIFICATE-----\n",
+                        "bundle-name":  "com.livekit.ohos.demo",
+                        "apl":  "normal",
+                        "app-feature":  "hos_normal_app"
+                    },
+    "acls":  {
+                 "allowed-acls":  [
+                                      ""
+                                  ]
+             },
+    "permissions":  {
+                        "restricted-permissions":  [
+                                                       ""
+                                                   ]
+                    },
+    "debug-info":  {
+                       "device-ids":  [
+                                          "3A6C1ADDCCEEDCC34629954E48DABD37C57AD2BC6B1F4BDB78D46A9E29DF2226",
+                                          "ADB46EE5CCF3E5228ED4A2E3E6C96B5FFB01EF7BDA690DF2D86727B33F156DC8"
+                                      ],
+                       "device-id-type":  "udid"
+                   },
+    "issuer":  "pki_internal"
+}

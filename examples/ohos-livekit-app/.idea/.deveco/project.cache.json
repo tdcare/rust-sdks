@@ -1,0 +1,16 @@
+{
+	"CommonInfo":{
+		"project.ide.version":"6.0.2.640",
+		"current.select.product":"default",
+		"current.select.buildMode":"",
+		"crossplatform.projectType":""
+	},
+	"BuildOptions":{
+		"SELECT_BUILD_PRODUCT":"default",
+		"BUNDLE_NAME":"com.livekit.ohos.demo",
+		"BUILD_PATH":{
+			"OUTPUT_PATH":"D:\\tdcare\\livekit\\rust-sdks\\examples\\ohos-livekit-app\\build\\outputs\\default"
+		},
+		"SELECT_BUILD_MODE":""
+	}
+}

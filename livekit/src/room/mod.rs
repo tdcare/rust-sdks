@@ -585,7 +585,13 @@ impl Room {
             let e2ee_manager = e2ee_manager.clone();
             move |participant, publication| {
                 log::debug!("local track published: {}", publication.sid());
-                let track = publication.track().unwrap();
+                let Some(track) = publication.track() else {
+                    log::warn!(
+                        "on_local_track_published: track for publication {} is missing, skipping event dispatch",
+                        publication.sid()
+                    );
+                    return;
+                };
                 let event = RoomEvent::LocalTrackPublished {
                     participant: participant.clone(),
                     publication: publication.clone(),
@@ -1341,7 +1347,7 @@ impl RoomSession {
         }
     }
 
-    async fn send_sync_state(self: &Arc<Self>) {
+    async fn send_sync_state(self: &Arc<Self>, restarting: bool) {
         let auto_subscribe = self.options.auto_subscribe;
         let session = self.rtc_engine.session();
         let single_pc_mode = session.is_single_pc_mode();
@@ -1443,7 +1449,7 @@ impl RoomSession {
             track_sids_disabled: Vec::default(), // TODO: New protocol version
             subscription: Some(proto::UpdateSubscription {
                 track_sids,
-                subscribe: !auto_subscribe,
+                subscribe: if restarting { true } else { !auto_subscribe },
                 participant_tracks: Vec::new(),
             }),
             publish_tracks: self.local_participant.published_tracks_info(),
@@ -1552,7 +1558,7 @@ impl RoomSession {
         livekit_runtime::spawn({
             let session = self.clone();
             async move {
-                session.send_sync_state().await;
+                session.send_sync_state(false).await;
 
                 // Always send the sync state before continuing the reconnection (e.g: publisher
                 // offer)
@@ -1599,7 +1605,13 @@ impl RoomSession {
                 let mut set = tokio::task::JoinSet::new();
 
                 for (_, publication) in published_tracks {
-                    let track = publication.track().unwrap();
+                    let Some(track) = publication.track() else {
+                        log::warn!(
+                            "skipping republish for publication {} — track already dropped",
+                            publication.sid()
+                        );
+                        continue;
+                    };
 
                     let lp = session.local_participant.clone();
                     let republish_session = session.clone();
@@ -1653,10 +1665,30 @@ impl RoomSession {
         join_response: proto::JoinResponse,
         tx: oneshot::Sender<()>,
     ) {
-        self.local_participant.update_info(join_response.participant.unwrap()); // The sid may have changed
+        // The sid may have changed
+        if let Some(participant) = join_response.participant {
+            self.local_participant.update_info(participant);
+        } else {
+            log::warn!("handle_signal_restarted: join_response.participant is missing");
+        }
 
         self.handle_participant_update(join_response.other_participants);
-        self.handle_room_update(join_response.room.unwrap());
+
+        if let Some(room) = join_response.room {
+            self.handle_room_update(room);
+        } else {
+            log::warn!("handle_signal_restarted: join_response.room is missing");
+        }
+
+        // Force a SyncState to the new subscriber PC so the SFU includes all
+        // remote tracks in its initial offer. Without this, tracks whose
+        // publications were created during reconnect (subscribed=true ==
+        // auto_subscribe=true) are never included in the UpdateSubscription,
+        // and the SFU omits them from the subscriber offer.
+        let session = self.clone();
+        livekit_runtime::spawn(async move {
+            session.send_sync_state(true).await;
+        });
 
         let _ = tx.send(());
     }

@@ -22,13 +22,13 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
-[target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
+[target.'cfg(all(any(target_os = "linux", target_os = "freebsd"), not(target_env = "ohos")))'.dependencies]
 glib = { version = "0.21.3", optional = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_env = "ohos")))'.dependencies]
 webrtc-sys = { workspace = true }
 livekit-runtime = { workspace = true }
 lazy_static = { workspace = true }
@@ -36,6 +36,23 @@ parking_lot = { workspace = true }
 tokio = { workspace = true, default-features = false, features = ["sync", "macros"] }
 cxx = "1.0"
 rtrb = "0.3.3"
+
+[target.'cfg(target_env = "ohos")'.dependencies]
+rtc = { workspace = true }
+rtc-shared = { workspace = true }
+rtc-datachannel = { workspace = true }
+rtc-dtls = { workspace = true }
+rtc-ice = { workspace = true }
+rtc-rtp = { workspace = true }
+rtc-srtp = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "net", "sync", "time", "macros"] }
+parking_lot = { workspace = true }
+livekit-runtime = { workspace = true }
+bytes = "1.5"
+opus = { workspace = true }
+soxr-sys = { workspace = true }
+aes-gcm = { workspace = true }
+sha2 = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"

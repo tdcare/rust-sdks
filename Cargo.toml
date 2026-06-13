@@ -10,6 +10,7 @@ members = [
     "livekit-ffi-node-bindings",
     "livekit-runtime",
     "livekit-wakeword",
+    "livekit-napi-ohos",
     "libwebrtc",
     "soxr-sys",
     "yuv-sys",
@@ -37,11 +38,24 @@ members = [
     "examples/wgpu_room",
 ]
 
+# rtc-patched is a self-contained workspace (webrtc-rs/rtc fork with OHOS patches).
+# It must not be folded into this workspace; otherwise its `version.workspace = true`
+# inheritance resolves against this manifest's `[workspace.package]` (which lacks `version`).
+exclude = [
+    "rtc-patched",
+    "libvpx-build",
+]
+
 [workspace.package]
 edition = "2021"
 homepage = "https://livekit.io"
 repository = "https://github.com/livekit/rust-sdks"
 license = "Apache-2.0"
+# NOTE: This `version` is not consumed by any crate in this workspace (each defines
+# its own literal `version`). It only exists to satisfy `version.workspace = true`
+# inheritance from the rtc-patched sub-workspace when Cargo resolves path deps
+# across the outer/inner workspace boundary.
+version = "0.20.0-alpha.1"
 
 [workspace.dependencies]
 device-info = { version = "0.1.1", path = "device-info" }
@@ -80,6 +94,26 @@ thiserror = "2"
 tokio = { version = "1", default-features = false }
 tokio-stream = "0.1"
 hound = "3.5"
+opus = "0.3"
+aes-gcm = "0.10"
+sha2 = "0.10"
+
+# webrtc-rs/rtc (OHOS patched) - Sans-I/O WebRTC implementation
+rtc = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc" }
+rtc-shared = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-shared", default-features = false }
+rtc-datachannel = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-datachannel" }
+rtc-dtls = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-dtls" }
+rtc-ice = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-ice" }
+rtc-interceptor = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-interceptor" }
+rtc-mdns = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-mdns" }
+rtc-media = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-media" }
+rtc-rtcp = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-rtcp" }
+rtc-rtp = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-rtp" }
+rtc-sctp = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-sctp" }
+rtc-sdp = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-sdp" }
+rtc-srtp = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-srtp" }
+rtc-stun = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-stun" }
+rtc-turn = { version = "0.20.0-alpha.1", path = "rtc-patched/rtc-turn" }
 
 # For examples
 eframe = { version = "0.33.3", default-features = false }

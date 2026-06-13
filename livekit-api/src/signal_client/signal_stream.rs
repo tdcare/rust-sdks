@@ -35,7 +35,6 @@ use tokio::{
 
 #[cfg(feature = "signal-client-tokio")]
 use tokio_tungstenite::{
-    connect_async,
     tungstenite::client::IntoClientRequest,
     tungstenite::error::ProtocolError,
     tungstenite::http::{header::AUTHORIZATION, HeaderValue},
@@ -304,13 +303,68 @@ impl SignalStream {
                     ws_stream
                 } else {
                     // No proxy specified, connect directly
-                    let (ws_stream, _) = connect_async(request).await?;
-                    ws_stream
+                    #[cfg(all(feature = "__rustls-tls", feature = "rustls-tls-webpki-roots"))]
+                    {
+                        use std::sync::Arc;
+                        use tokio_rustls::rustls;
+                        use tokio_tungstenite::Connector;
+
+                        let mut root_store = rustls::RootCertStore::empty();
+                        root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+                        let tls_config = rustls::ClientConfig::builder()
+                            .with_root_certificates(root_store)
+                            .with_no_client_auth();
+                        let connector = Connector::Rustls(Arc::new(tls_config));
+
+                        let (ws_stream, _) = tokio_tungstenite::connect_async_tls_with_config(
+                            request,
+                            None,
+                            false,
+                            Some(connector),
+                        )
+                        .await?;
+                        ws_stream
+                    }
+                    #[cfg(not(all(
+                        feature = "__rustls-tls",
+                        feature = "rustls-tls-webpki-roots"
+                    )))]
+                    compile_error!(
+                        "livekit-api with signal-client-tokio requires features \
+                         `__rustls-tls` and `rustls-tls-webpki-roots` for WSS support. \
+                         Add them to the livekit dependency features in Cargo.toml."
+                    );
                 }
             } else {
-                // Non-tokio build or no proxy - connect directly
-                let (ws_stream, _) = connect_async(request).await?;
-                ws_stream
+                // No proxy env var set - connect directly with explicit TLS
+                #[cfg(all(feature = "__rustls-tls", feature = "rustls-tls-webpki-roots"))]
+                {
+                    use std::sync::Arc;
+                    use tokio_rustls::rustls;
+                    use tokio_tungstenite::Connector;
+
+                    let mut root_store = rustls::RootCertStore::empty();
+                    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+                    let tls_config = rustls::ClientConfig::builder()
+                        .with_root_certificates(root_store)
+                        .with_no_client_auth();
+                    let connector = Connector::Rustls(Arc::new(tls_config));
+
+                    let (ws_stream, _) = tokio_tungstenite::connect_async_tls_with_config(
+                        request,
+                        None,
+                        false,
+                        Some(connector),
+                    )
+                    .await?;
+                    ws_stream
+                }
+                #[cfg(not(all(feature = "__rustls-tls", feature = "rustls-tls-webpki-roots")))]
+                compile_error!(
+                    "livekit-api with signal-client-tokio requires features \
+                     `__rustls-tls` and `rustls-tls-webpki-roots` for WSS support. \
+                     Add them to the livekit dependency features in Cargo.toml."
+                );
             };
 
             ws_stream

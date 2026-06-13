@@ -1,0 +1,33 @@
+﻿[package]
+name = "livekit-napi-ohos"
+version = "0.1.0"
+edition = "2021"
+description = "LiveKit NAPI bindings for OpenHarmony ArkTS"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi-ohos = { version = "1", features = ["async", "napi8", "serde-json"] }
+napi-derive-ohos = "1"
+# Pull in livekit with rustls TLS support enabled. We rely on the bundled
+# Mozilla CA roots from `webpki-roots` because OHOS does not expose the
+# standard `/etc/ssl/certs` layout that `rustls-native-certs` requires, which
+# would cause runtime initialization failures during TLS setup.
+livekit = { path = "../livekit", features = [
+    "__rustls-tls",
+    "rustls-tls-webpki-roots",
+] }
+libwebrtc = { path = "../libwebrtc" }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros"] }
+futures = "0.3"
+imgproc = { path = "../imgproc" }
+parking_lot = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+
+[build-dependencies]
+napi-build-ohos = "1"
+cc = "1"

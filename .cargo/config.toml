@@ -19,3 +19,16 @@ rustflags = ["-C", "link-args=-ObjC"]
 
 [target.aarch64-apple-ios-sim]
 rustflags = ["-C", "link-args=-ObjC"]
+
+# OHOS (OpenHarmony) cross-compilation targets
+# Requires OHOS SDK with NDK toolchain installed
+# Set OHOS_SDK_HOME environment variable to point to the SDK root
+
+[target.aarch64-unknown-linux-ohos]
+linker = "aarch64-unknown-linux-ohos-clang"
+
+[target.armv7-unknown-linux-ohos]
+linker = "armv7-unknown-linux-ohos-clang"
+
+[target.x86_64-unknown-linux-ohos]
+linker = "x86_64-unknown-linux-ohos-clang"

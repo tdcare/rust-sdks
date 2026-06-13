@@ -15,7 +15,8 @@
 use thiserror::Error;
 
 #[cfg_attr(target_arch = "wasm32", path = "web/mod.rs")]
-#[cfg_attr(not(target_arch = "wasm32"), path = "native/mod.rs")]
+#[cfg_attr(all(not(target_arch = "wasm32"), target_env = "ohos"), path = "ohos/mod.rs")]
+#[cfg_attr(all(not(target_arch = "wasm32"), not(target_env = "ohos")), path = "native/mod.rs")]
 mod imp;
 
 mod enum_dispatch;
@@ -47,7 +48,10 @@ pub mod audio_source;
 pub mod audio_stream;
 pub mod audio_track;
 pub mod data_channel;
-#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+#[cfg(all(
+    any(target_os = "macos", target_os = "windows", target_os = "linux"),
+    not(target_env = "ohos")
+))]
 pub mod desktop_capturer;
 pub mod ice_candidate;
 pub mod media_stream;
@@ -68,7 +72,33 @@ pub mod video_track;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native {
+    #[cfg(not(target_env = "ohos"))]
     pub use webrtc_sys::webrtc::ffi::create_random_uuid;
+
+    /// Pure-Rust UUID-v4 substitute used on OHOS where libwebrtc's
+    /// `rtc::CreateRandomUuid` FFI is not available.
+    ///
+    /// The format matches RFC 4122 v4 textually; the entropy comes from
+    /// the system clock rather than a CSPRNG. This is sufficient for the
+    /// SDK's internal usage (track / SDP `cname` identifiers) without
+    /// pulling additional dependencies into the OHOS build.
+    #[cfg(target_env = "ohos")]
+    pub fn create_random_uuid() -> String {
+        use std::time::SystemTime;
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default();
+        let nanos = now.as_nanos();
+        let secs = now.as_secs();
+        format!(
+            "{:08x}-{:04x}-4{:03x}-{:04x}-{:012x}",
+            (nanos & 0xFFFF_FFFF) as u32,
+            ((nanos >> 32) & 0xFFFF) as u16,
+            (secs & 0x0FFF) as u16,
+            (0x8000 | ((nanos >> 48) & 0x3FFF)) as u16,
+            (secs & 0xFFFF_FFFF_FFFF) as u64,
+        )
+    }
 
     pub use crate::imp::{
         apm, audio_mixer, audio_resampler, frame_cryptor, packet_trailer, yuv_helper,
