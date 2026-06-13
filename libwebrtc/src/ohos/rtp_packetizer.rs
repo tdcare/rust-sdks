@@ -52,7 +52,7 @@ pub(crate) fn pack_h264_frame(annexb_data: &[u8]) -> Vec<RtpFragment> {
     }
 
     let last_picture_idx = find_last_picture_nalu(&nalus);
-    let mut fragments = Vec::new();
+    let mut fragments = Vec::with_capacity(nalus.len());
 
     for (idx, nalu) in nalus.iter().enumerate() {
         if nalu.is_empty() {
@@ -164,7 +164,8 @@ pub(crate) fn pack_vp8_frame(vp8_data: &[u8], is_key_frame: bool, picture_id: u1
     let cont_first_byte = first_byte & !0x10; // clear S bit
 
     let max_chunk = MAX_RTP_PAYLOAD_SIZE - desc_size;
-    let mut fragments = Vec::new();
+    let est = 1 + vp8_data.len() / MAX_RTP_PAYLOAD_SIZE;
+    let mut fragments = Vec::with_capacity(est);
     let mut offset = 0usize;
     let mut is_first = true;
 
@@ -246,7 +247,7 @@ pub(crate) fn fragments_to_packets(
 /// Split an Annex-B bitstream into individual NALUs, stripping start codes
 /// (`0x000001` or `0x00000001`).
 fn split_annexb_nalus(data: &[u8]) -> Vec<&[u8]> {
-    let mut nalus = Vec::new();
+    let mut nalus = Vec::with_capacity(16);
     let mut i = 0usize;
     let mut nalu_start: Option<usize> = None;
 

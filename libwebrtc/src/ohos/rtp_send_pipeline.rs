@@ -104,7 +104,9 @@ impl RtpSendPipeline {
                 // Log packetization details for debugging
                 if !frags.is_empty() {
                     let first_payload = &frags[0].payload;
+                    #[cfg(debug_assertions)]
                     let head_hex: Vec<String> = first_payload.iter().take(8).map(|b| format!("{:02x}", b)).collect();
+                    #[cfg(debug_assertions)]
                     log::info!(
                         "[RtpSendPipeline] H264 packetized: {} bytes input → {} fragments, first frag: {} bytes, head=[{}], marker={}, pt={}",
                         data.len(), frags.len(), first_payload.len(), head_hex.join(" "), frags[0].marker, self.payload_type
@@ -120,7 +122,9 @@ impl RtpSendPipeline {
                 self.vp8_picture_id = (self.vp8_picture_id + 1) & 0x7FFF;
                 if !frags.is_empty() {
                     let first_payload = &frags[0].payload;
+                    #[cfg(debug_assertions)]
                     let head_hex: Vec<String> = first_payload.iter().take(8).map(|b| format!("{:02x}", b)).collect();
+                    #[cfg(debug_assertions)]
                     log::info!(
                         "[RtpSendPipeline] VP8 packetized: {} bytes input → {} fragments, first frag: {} bytes, head=[{}], marker={}, pt={}, pid={}, key={}",
                         data.len(), frags.len(), first_payload.len(), head_hex.join(" "), frags[0].marker, self.payload_type_vp8, pid, is_key_frame

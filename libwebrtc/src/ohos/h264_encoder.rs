@@ -299,6 +299,7 @@ pub struct H264Encoder {
     user_data: Arc<EncoderUserData>,
     width: u32,
     height: u32,
+    nv12_scratch: Vec<u8>,
     is_running: AtomicBool,
     frame_count: u64,
 }
@@ -425,6 +426,47 @@ impl H264Encoder {
             frame_count: 0 })
     }
 
+
+/// Convert I420 to NV12, writing into a caller-provided destination buffer
+/// (amortised allocation).  Resizes `dst` when needed.
+fn i420_to_nv12_into(i420: &[u8], width: u32, height: u32, dst: &mut Vec<u8>) {
+    let w = width as usize;
+    let h = height as usize;
+    let cw = (w + 1) / 2;
+    let ch = (h + 1) / 2;
+    let stride = ((w + 63) / 64) * 64;
+    let y_padded = stride * h;
+    let uv_stride = stride;
+    let uv_rows = ch;
+    let uv_padded = uv_stride * uv_rows;
+    let total = y_padded + uv_padded;
+
+    if dst.len() != total {
+        dst.resize(total, 0u8);
+    }
+
+    let y = &i420[..w * h];
+    let u = &i420[w * h..w * h + cw * ch];
+    let v = &i420[w * h + cw * ch..w * h + 2 * cw * ch];
+
+    for row in 0..h {
+        let src = &y[row * w..(row + 1) * w];
+        let dst_off = row * stride;
+        dst[dst_off..dst_off + w].copy_from_slice(src);
+    }
+
+    let uv_base = y_padded;
+    for row in 0..ch {
+        let u_src_off = row * cw;
+        let v_src_off = row * cw;
+        let dst_row_off = uv_base + row * uv_stride;
+        for col in 0..cw {
+            dst[dst_row_off + col * 2] = u[u_src_off + col];
+            dst[dst_row_off + col * 2 + 1] = v[v_src_off + col];
+        }
+    }
+}
+
     /// Push an I420 frame and return any available encoded H.264 packet.
     pub fn encode(&mut self, i420_data: &[u8], timestamp_us: i64) -> Result<Option<(Vec<u8>, bool)>, RtcError> {
         let expected = (self.width * self.height * 3 / 2) as usize;
@@ -432,11 +474,11 @@ impl H264Encoder {
             return Err(err(format!("I420 buffer too small: {} < {}", i420_data.len(), expected)));
         }
 
-        let nv12 = i420_to_nv12(i420_data, self.width, self.height);
+        i420_to_nv12_into(i420_data, self.width, self.height, &mut self.nv12_scratch);
         {
             let mut pq = self.user_data.pending_frames.lock();
             if pq.len() >= 8 { pq.pop_front(); }
-            pq.push_back(PendingFrame { data: nv12, timestamp_us });
+            pq.push_back(PendingFrame { data: self.nv12_scratch.clone(), timestamp_us });
 
         }
         self.frame_count += 1;

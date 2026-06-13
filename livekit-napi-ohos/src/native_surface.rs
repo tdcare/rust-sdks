@@ -15,6 +15,7 @@ use std::collections::VecDeque;
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int};
 use std::ptr;
+use imgproc::colorcvt;
 use std::sync::Once;
 
 // ============================================================
