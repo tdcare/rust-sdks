@@ -1,4 +1,4 @@
-﻿//! H.264 hardware encoder using OH_AVCodec.
+//! H.264 hardware encoder using OH_AVCodec.
 //!
 //! Uses the OpenHarmony `OH_VideoEncoder` API with MIME `"video/avc"` to
 //! leverage device hardware H.264 encoding. Falls back to software encoder
@@ -422,8 +422,7 @@ impl H264Encoder {
         if ret != AV_ERR_OK { unsafe { OH_VideoEncoder_Destroy(codec) }; return Err(err(format!("Start failed: {ret}"))); }
 
         log::info!("[H264Encoder] initialised {width}x{height} @ {bitrate_kbps}kbps (OH_AVCodec)");
-        Ok(Self { codec, user_data, width, height, is_running: AtomicBool::new(true),
-            frame_count: 0 })
+        Ok(Self { codec, user_data, width, height, is_running: AtomicBool::new(true), nv12_scratch: Vec::new(), frame_count: 0 })
     }
 
 
@@ -474,11 +473,11 @@ fn i420_to_nv12_into(i420: &[u8], width: u32, height: u32, dst: &mut Vec<u8>) {
             return Err(err(format!("I420 buffer too small: {} < {}", i420_data.len(), expected)));
         }
 
-        i420_to_nv12_into(i420_data, self.width, self.height, &mut self.nv12_scratch);
+        Self::i420_to_nv12_into(i420_data, self.width, self.height, &mut self.nv12_scratch);
         {
             let mut pq = self.user_data.pending_frames.lock();
             if pq.len() >= 8 { pq.pop_front(); }
-            pq.push_back(PendingFrame { data: self.nv12_scratch.clone(), timestamp_us });
+            pq.push_back(PendingFrame { data: std::mem::take(&mut self.nv12_scratch), timestamp_us });
 
         }
         self.frame_count += 1;

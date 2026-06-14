@@ -552,7 +552,7 @@ impl Default for SoftwareVP8DecoderConfig {
 #[derive(Clone)]
 pub struct DecodedFrame {
     /// I420 格式数据
-    pub self.dec_output_scratch: Vec<u8>,
+    pub i420_data: Vec<u8>,
     pub width: u32,
     pub height: u32,
     pub timestamp_us: i64,
@@ -736,7 +736,7 @@ impl SoftwareVP8Decoder {
                 }
                 
                 self.output_queue.push_back(DecodedFrame {
-                    self.dec_output_scratch,
+                    i420_data: self.dec_output_scratch.clone(),
                     width,
                     height,
                     timestamp_us,

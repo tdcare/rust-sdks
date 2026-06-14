@@ -122,3 +122,58 @@ pub fn create_receiver_handler<P, R>(
 ) -> PacketTrailerHandler {
     PacketTrailerHandler::new()
 }
+
+// ---------------------------------------------------------------------------
+// Stub publish/subscribe timing types (mirrors native::packet_trailer)
+// ---------------------------------------------------------------------------
+
+/// Stage reached by a native local video frame in the publish pipeline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PublishTimingStage {
+    EncoderUpload,
+    EncoderOutput,
+    WebrtcPacketize,
+}
+
+/// Stage reached by a native remote video frame in the subscribe pipeline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubscribeTimingStage {
+    WebrtcReceive,
+    DecoderUpload,
+    DecoderOutput,
+}
+
+/// Timestamped native local video publish pipeline event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PublishTimingEvent {
+    pub stage: PublishTimingStage,
+    pub timestamp_us: u64,
+    pub capture_timestamp_us: u64,
+    pub frame_id: Option<u32>,
+}
+
+/// Timestamped native remote video subscribe pipeline event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SubscribeTimingEvent {
+    pub stage: SubscribeTimingStage,
+    pub timestamp_us: u64,
+    pub capture_timestamp_us: u64,
+    pub frame_id: Option<u32>,
+}
+
+/// Callback invoked for native local video publish timing events.
+pub type PublishTimingObserver = std::sync::Arc<dyn Fn(PublishTimingEvent) + Send + Sync + 'static>;
+/// Callback invoked for native remote video subscribe timing events.
+pub type SubscribeTimingObserver = std::sync::Arc<dyn Fn(SubscribeTimingEvent) + Send + Sync + 'static>;
+
+impl PacketTrailerHandler {
+    /// Stub: OHOS does not yet implement timing observer callbacks.
+    pub fn set_publish_timing_observer(&self, _observer: Option<PublishTimingObserver>) {
+        // no-op on OHOS
+    }
+
+    /// Stub: OHOS does not yet implement timing observer callbacks.
+    pub fn set_subscribe_timing_observer(&self, _observer: Option<SubscribeTimingObserver>) {
+        // no-op on OHOS
+    }
+}

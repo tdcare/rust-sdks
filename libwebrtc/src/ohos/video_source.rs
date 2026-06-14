@@ -181,6 +181,13 @@ impl NativeVideoSource {
         { let mut res = self.resolution.lock(); if res.width != width || res.height != height { res.width = width; res.height = height; } }
         self.encode_and_send(i420_data, width, height, timestamp_us);
     }
+
+    /// Stub: Jetson DMA-buffer capture is not supported on OHOS.
+    /// Exists for API compatibility with the native backend.
+    pub fn capture_jetson_frame(&self, _dma_buf_fd: std::os::fd::RawFd, _width: u32, _height: u32, _timestamp_us: i64) {
+        // no-op on OHOS
+    }
+
     pub fn send_encoded_frame(
         &self,
         data: &[u8],

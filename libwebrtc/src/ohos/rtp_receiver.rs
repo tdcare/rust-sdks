@@ -19,6 +19,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::{
+    media_stream::MediaStream,
     media_stream_track::MediaStreamTrack,
     rtp_parameters::{RtcpParameters, RtpParameters},
     stats::RtcStats,
@@ -57,5 +58,15 @@ impl RtpReceiver {
 
     pub fn parameters(&self) -> RtpParameters {
         self.parameters.lock().clone()
+    }
+
+    /// Stub: OHOS does not yet track stream IDs.
+    pub fn stream_ids(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    /// Stub: OHOS does not yet track media streams.
+    pub fn streams(&self) -> Vec<MediaStream> {
+        Vec::new()
     }
 }

@@ -107,7 +107,7 @@ fn pack_h264_fua(nalu: &[u8], is_last_picture_of_frame: bool, fragments: &mut Ve
         payload.extend_from_slice(&nalu[offset..offset + chunk]);
 
         let marker = is_last && is_last_picture_of_frame;
-        fragments.push(RtpFragment { payload, marker });
+        fragments.push(RtpFragment { payload: Bytes::from(payload), marker });
 
         offset += chunk;
         is_first = false;

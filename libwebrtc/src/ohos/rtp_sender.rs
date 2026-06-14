@@ -23,6 +23,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::{
+    rtp_sender::VideoEncoderBackend,
     media_stream_track::MediaStreamTrack,
     rtp_parameters::{RtcpParameters, RtpParameters},
     stats::RtcStats,
@@ -77,4 +78,17 @@ impl RtpSender {
         *self.parameters.lock() = parameters;
         Ok(())
     }
+
+    /// Stub: OHOS does not yet implement video encoder backend selection.
+    pub fn set_video_encoder_backend(&self, _backend: VideoEncoderBackend) {
+        // no-op on OHOS
+    }
+
+}
+
+
+/// Stub: OHOS returns an empty encoder list.
+/// This is a module-level function (not a method) called by the RtpSender wrapper.
+pub fn video_encoder_backend_list() -> Vec<VideoEncoderBackend> {
+    Vec::new()
 }
