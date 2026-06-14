@@ -1,4 +1,4 @@
-import { hilog } from '@kit.PerformanceAnalysisKit';
+﻿import { hilog } from '@kit.PerformanceAnalysisKit';
 import { common } from '@kit.AbilityKit';
 import { router } from '@kit.ArkUI';
 import { LkRoom, LkLocalAudioTrack, LkLocalVideoTrack, LkRemoteVideoTrack, LkRemoteAudioTrack } from 'liblivekit.so';
@@ -73,6 +73,16 @@ struct RoomPage {
   @State private currentCallId: string = '';
   @State private currentLivekitRoom: string = '';
   @State private currentTargets: string[] = [];
+  @State private cameraFacingFront: boolean = true;
+  @State private pipMainIsRemote: boolean = true; // true=远程大画面, false=本地大画面
+  @State private pipSmallX: number = 200; // PiP 小窗口 X 位置 (px)
+  @State private pipSmallY: number = 8;   // PiP 小窗口 Y 位置 (px)
+  private isTogglingCam: boolean = false; // 防止并发切换摄像头
+  private remoteSurfaceId: string = '';   // 远程 XComponent 的 surface ID
+  private dragBaseX: number = 0;  // 拖拽起始时 PiP 的 X
+  private dragBaseY: number = 0;  // 拖拽起始时 PiP 的 Y
+  private pipContainerW: number = 342; // Stack 容器近似宽度（95% * 360vp），拖拽边界用
+  private pipContainerH: number = 400;
 
   // 通话计时
   private callSeconds: number = 0;
@@ -308,14 +318,15 @@ struct RoomPage {
         }
       }
 
-      // Video area
+      // Video area ─── 画中画 (PiP)
       if (this.connected) {
-        Column({ space: 8 }) {
-          // Remote video (primary display via NativeWindow Surface)
-          Text('Remote Video')
-            .fontSize(12)
-            .fontColor('#666666')
-          Stack() {
+        // 统一的视频容器：Stack 叠加远程和本地画面
+        // 布局策略：远程在主画面时渲染在最底层(第一个子元素)，
+        //          远程在 PiP 时渲染在最顶层(最后一个子元素)，
+        //          本地始终在中间层，通过 if/else 控制远程位置实现置顶。
+        Stack() {
+          // ── 远程 = 主画面时，渲染在最底层 ──
+          if (this.pipMainIsRemote) {
             XComponent({
               id: 'remote-video-surface',
               type: XComponentType.SURFACE,
@@ -325,99 +336,209 @@ struct RoomPage {
                 const surfaceId: string = this.remoteXController.getXComponentSurfaceId();
                 hilog.info(0x0000, TAG,
                   'Remote XComponent surface ready: id=%{public}s', surfaceId);
-                // Pass surface ID to native renderer (1280x720 = expected remote resolution)
+                this.remoteSurfaceId = surfaceId;
                 this.videoRender.setSurfaceId(surfaceId, 1280, 720);
               })
               .onDestroy(() => {
-                hilog.info(0x0000, TAG, 'Remote XComponent surface destroyed');
+                hilog.info(0x0000, TAG, 'Remote XComponent surface destroyed (main→PiP)');
               })
               .width('100%')
               .height('100%')
-
-            // Placeholder text while waiting for video
-            if (!this.hasRemoteVideo) {
-              Column() {
-                Text('Waiting for remote video...')
-                  .fontColor('#999999')
-                  .fontSize(14)
-              }
-              .width('100%')
-              .height('100%')
-              .justifyContent(FlexAlign.Center)
-            }
+              .position({ x: 0, y: 0 })
+              .borderRadius(0)
+              .border({ width: 0 })
+              .gesture(
+                TapGesture({ count: 2 })
+                  .onAction(() => { this.togglePip(); })
+              )
           }
-          .width('95%')
-          .height(300)
-          .backgroundColor('#000000')
-          .borderRadius(8)
 
-          // Local camera preview (small PIP-style)
-          Text('Local Camera')
-            .fontSize(12)
-            .fontColor('#666666')
-          Stack() {
+          // ── 本地预览（大小/位置随 pipMainIsRemote 变化），始终存在 ──
+          XComponent({
+            id: 'local-preview-surface',
+            type: XComponentType.SURFACE,
+            controller: this.localXController,
+          })
+            .onLoad(() => {
+              const surfaceId: string = this.localXController.getXComponentSurfaceId();
+              hilog.info(0x0000, TAG,
+                'Local preview XComponent surface ready: id=%{public}s', surfaceId);
+              this.localPreviewSurfaceId = surfaceId;
+              if (this.localPreviewSurfaceResolve !== null) {
+                this.localPreviewSurfaceResolve(surfaceId);
+                this.localPreviewSurfaceResolve = null;
+              }
+            })
+            .onDestroy(() => {
+              hilog.info(0x0000, TAG, 'Local preview XComponent surface destroyed');
+              this.localPreviewSurfaceId = '';
+            })
+            .width(this.pipMainIsRemote ? 130 : '100%')
+            .height(this.pipMainIsRemote ? 175 : '100%')
+            .position(this.pipMainIsRemote ?
+              { x: this.pipSmallX, y: this.pipSmallY } : { x: 0, y: 0 })
+            .borderRadius(this.pipMainIsRemote ? 8 : 0)
+            .border(this.pipMainIsRemote ?
+              { width: 2, color: '#4FC3F7', style: BorderStyle.Solid } : { width: 0 })
+            .gesture(
+              GestureGroup(GestureMode.Parallel,
+                TapGesture({ count: 2 })
+                  .onAction(() => { this.togglePip(); }),
+                PanGesture({ fingers: 1, direction: PanDirection.All, distance: 10 })
+                  .onActionStart(() => {
+                    this.dragBaseX = this.pipSmallX;
+                    this.dragBaseY = this.pipSmallY;
+                  })
+                  .onActionUpdate((event: GestureEvent) => {
+                    // 仅当本地是 PiP 小窗时才响应拖拽
+                    if (!this.pipMainIsRemote) return;
+                    let nx: number = this.dragBaseX + event.offsetX;
+                    let ny: number = this.dragBaseY + event.offsetY;
+                    if (nx < 0) { nx = 0; }
+                    if (ny < 0) { ny = 0; }
+                    if (nx + 130 > this.pipContainerW) { nx = this.pipContainerW - 130; }
+                    if (ny + 175 > this.pipContainerH) { ny = this.pipContainerH - 175; }
+                    this.pipSmallX = nx;
+                    this.pipSmallY = ny;
+                  })
+              )
+            )
+
+          // ── 远程 = PiP 时，渲染在最顶层 ──
+          if (!this.pipMainIsRemote) {
             XComponent({
-              id: 'local-preview-surface',
+              id: 'remote-video-surface',
               type: XComponentType.SURFACE,
-              controller: this.localXController,
+              controller: this.remoteXController,
             })
               .onLoad(() => {
-                const surfaceId: string = this.localXController.getXComponentSurfaceId();
+                const surfaceId: string = this.remoteXController.getXComponentSurfaceId();
                 hilog.info(0x0000, TAG,
-                  'Local preview XComponent surface ready: id=%{public}s', surfaceId);
-                this.localPreviewSurfaceId = surfaceId;
-                // Resolve the promise if we're waiting for the surface
-                if (this.localPreviewSurfaceResolve !== null) {
-                  this.localPreviewSurfaceResolve(surfaceId);
-                  this.localPreviewSurfaceResolve = null;
-                }
+                  'Remote XComponent surface ready: id=%{public}s', surfaceId);
+                this.remoteSurfaceId = surfaceId;
+                this.videoRender.setSurfaceId(surfaceId, 1280, 720);
               })
               .onDestroy(() => {
-                hilog.info(0x0000, TAG, 'Local preview XComponent surface destroyed');
-                this.localPreviewSurfaceId = '';
+                hilog.info(0x0000, TAG, 'Remote XComponent surface destroyed (PiP→main)');
               })
-              .width('100%')
-              .height('100%')
+              .width(130)
+              .height(175)
+              .position({ x: this.pipSmallX, y: this.pipSmallY })
+              .borderRadius(8)
+              .border({ width: 2, color: '#4FC3F7', style: BorderStyle.Solid })
+              .gesture(
+                GestureGroup(GestureMode.Parallel,
+                  TapGesture({ count: 2 })
+                    .onAction(() => { this.togglePip(); }),
+                  PanGesture({ fingers: 1, direction: PanDirection.All, distance: 10 })
+                    .onActionStart(() => {
+                      this.dragBaseX = this.pipSmallX;
+                      this.dragBaseY = this.pipSmallY;
+                    })
+                    .onActionUpdate((event: GestureEvent) => {
+                      // 仅当远程是 PiP 小窗时才响应拖拽
+                      if (this.pipMainIsRemote) return;
+                      let nx: number = this.dragBaseX + event.offsetX;
+                      let ny: number = this.dragBaseY + event.offsetY;
+                      if (nx < 0) { nx = 0; }
+                      if (ny < 0) { ny = 0; }
+                      if (nx + 130 > this.pipContainerW) { nx = this.pipContainerW - 130; }
+                      if (ny + 175 > this.pipContainerH) { ny = this.pipContainerH - 175; }
+                      this.pipSmallX = nx;
+                      this.pipSmallY = ny;
+                    })
+                )
+              )
+          }
 
-            // Placeholder when camera is not ready
-            if (this.cameraResolution.length === 0) {
+          // ── 等待远程视频的占位文本 ──
+          if (!this.hasRemoteVideo) {
+            Column() {
+              Text('等待对方视频...')
+                .fontColor('#AAAAAA')
+                .fontSize(14)
+            }
+            .width('100%')
+            .height('100%')
+            .justifyContent(FlexAlign.Center)
+          }
+
+          // ── 摄像头未就绪的占位 ──
+          if (this.cameraResolution.length === 0) {
+            if (this.pipMainIsRemote) {
+              // 本地是小窗，在小窗位置显示占位
+              Text('摄像头')
+                .fontSize(10)
+                .fontColor('#888888')
+                .position({ x: this.pipSmallX + 42, y: this.pipSmallY + 76 })
+            } else {
+              // 本地是主画面，在中央显示占位
               Column() {
-                Text('Camera preview')
-                  .fontColor('#666666')
-                  .fontSize(11)
+                Text('摄像头预览')
+                  .fontColor('#888888')
+                  .fontSize(13)
               }
               .width('100%')
               .height('100%')
               .justifyContent(FlexAlign.Center)
             }
           }
-          // v38-fix: minimum 160x214 to avoid transparent Surface rendering on some OHOS devices
-          .width('95%')
-          .height(220)
-          .backgroundColor('#000000')
-          .borderRadius(8)
+        }
+        .width('95%')
+        .height(400)
+        .backgroundColor('#1A1A1A')
+        .borderRadius(12)
+        .margin({ top: 4 })
 
-          if (this.cameraResolution.length > 0) {
-            Text(`Camera: ${this.cameraResolution}`)
-              .fontSize(11)
-              .fontColor('#888888')
-          }
+        // ── 摄像头分辨率和提示 ──
+        if (this.cameraResolution.length > 0) {
+          Text(`📷 ${this.cameraResolution}  |  ${this.cameraFacingFront ? '前摄' : '后摄'}`)
+            .fontSize(11)
+            .fontColor('#888888')
+            .margin({ top: 2 })
         }
 
         // Controls
-        Row({ space: 16 }) {
-          Button(this.micEnabled ? 'Mute' : 'Unmute')
+        Row({ space: 10 }) {
+          // 静音按钮：红色表示已静音，绿色表示正常
+          Button(this.micEnabled ? '麦克风' : '已静音')
+            .fontSize(13)
+            .fontColor(Color.White)
+            .backgroundColor(this.micEnabled ? '#4CAF50' : '#F44336')
+            .borderRadius(20)
+            .height(40)
             .onClick(() => { this.toggleMic(); })
 
-          Button(this.camEnabled ? 'Cam Off' : 'Cam On')
+          // 摄像头按钮：红色表示已关闭，绿色表示正常
+          Button(this.camEnabled ? '摄像头' : '摄像头已关')
+            .fontSize(13)
+            .fontColor(Color.White)
+            .backgroundColor(this.camEnabled ? '#4CAF50' : '#F44336')
+            .borderRadius(20)
+            .height(40)
             .onClick(() => { this.toggleCam(); })
 
-          Button('挂断')
+          // 切换前后摄像头按钮
+          Button(this.cameraFacingFront ? '前摄' : '后摄')
+            .fontSize(13)
             .fontColor(Color.White)
-            .backgroundColor(Color.Red)
+            .backgroundColor('#2196F3')
+            .borderRadius(20)
+            .height(40)
+            .onClick(() => { this.toggleCameraFacing(); })
+
+          // 挂断按钮
+          Button('挂断')
+            .fontSize(13)
+            .fontColor(Color.White)
+            .backgroundColor('#F44336')
+            .borderRadius(20)
+            .height(40)
             .onClick(() => { this.handleHangup(); })
         }
         .margin({ top: 12 })
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
 
         // Participants
         if (this.remoteParticipants.length > 0) {
@@ -891,16 +1012,93 @@ struct RoomPage {
     }
   }
 
+  /**
+   * 切换麦克风静音/取消静音
+   * Rust NAPI 的 set_muted 已改为 spawn 到 tokio 执行，ArkTS 直接调用即可。
+   */
   private toggleMic(): void {
     this.micEnabled = !this.micEnabled;
     hilog.info(0x0000, TAG, 'Mic %{public}s', this.micEnabled ? 'enabled' : 'muted');
     this.localAudioTrack?.setMuted(!this.micEnabled);
   }
 
-  private toggleCam(): void {
-    this.camEnabled = !this.camEnabled;
-    hilog.info(0x0000, TAG, 'Camera %{public}s', this.camEnabled ? 'enabled' : 'disabled');
-    this.localVideoTrack?.setMuted(!this.camEnabled);
+  /**
+   * 切换摄像头开启/关闭
+   * 关闭时摄像头物理停止采集；开启时重新启动摄像头并恢复视频推流
+   */
+  private async toggleCam(): Promise<void> {
+    if (this.isTogglingCam) {
+      hilog.warn(0x0000, TAG, 'toggleCam skipped: already in progress');
+      return;
+    }
+    this.isTogglingCam = true;
+
+    try {
+      this.camEnabled = !this.camEnabled;
+      hilog.info(0x0000, TAG, 'Camera %{public}s', this.camEnabled ? 'enabled' : 'disabled');
+
+      if (!this.camEnabled) {
+        // 关闭：mute Track 停止推流（Rust 内部已 spawn），再停止摄像头采集
+        this.localVideoTrack?.setMuted(true);
+        try {
+          await this.videoCapture.stop();
+          hilog.info(0x0000, TAG, 'Camera capture stopped');
+        } catch (e) {
+          hilog.warn(0x0000, TAG, 'Camera stop error: %{public}s', JSON.stringify(e));
+        }
+      } else {
+        // 开启：启动摄像头采集，再 unmute 恢复推流
+        try {
+          if (!this.videoCapture.isRunning()) {
+            await this.videoCapture.start();
+            hilog.info(0x0000, TAG, 'Camera capture restarted');
+          }
+        } catch (e) {
+          hilog.error(0x0000, TAG, 'Camera start error: %{public}s', JSON.stringify(e));
+          this.camEnabled = false;
+          this.statusText = '摄像头启动失败';
+          return;
+        }
+        this.localVideoTrack?.setMuted(false);
+        hilog.info(0x0000, TAG, 'Camera unmuted, video streaming resumed');
+      }
+    } finally {
+      this.isTogglingCam = false;
+    }
+  }
+
+  /**
+   * 切换前后摄像头
+   * 保持当前摄像头开关状态，仅切换摄像头方向并重新采集
+   */
+  private toggleCameraFacing(): void {
+    this.cameraFacingFront = !this.cameraFacingFront;
+    const newPosition: string = this.cameraFacingFront ? 'front' : 'back';
+    hilog.info(0x0000, TAG, 'Switching camera to %{public}s', newPosition);
+    try {
+      this.videoCapture.switchCamera(this.cameraFacingFront ? 'front' : 'back');
+      // 延迟更新分辨率信息（摄像头重启需要时间）
+      setTimeout(() => {
+        if (this.videoCapture.isRunning()) {
+          this.cameraResolution =
+            `${this.videoCapture.getActualWidth()}x${this.videoCapture.getActualHeight()}`;
+          hilog.info(0x0000, TAG,
+            'Camera switched, new resolution: %{public}s', this.cameraResolution);
+        }
+      }, 500);
+    } catch (e) {
+      hilog.error(0x0000, TAG, 'Camera switch failed: %{public}s', JSON.stringify(e));
+      this.cameraFacingFront = !this.cameraFacingFront;
+    }
+  }
+
+  /**
+   * 切换画中画（主画面和 PIP 小窗互换）
+   */
+  private togglePip(): void {
+    this.pipMainIsRemote = !this.pipMainIsRemote;
+    hilog.info(0x0000, TAG,
+      'PiP swapped: main=%{public}s', this.pipMainIsRemote ? 'remote' : 'local');
   }
 
   /**

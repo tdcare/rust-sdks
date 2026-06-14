@@ -198,12 +198,15 @@ pub(super) fn new_inner(
 
 /// This is only called for local tracks
 pub(super) fn set_muted(inner: &Arc<TrackInner>, track: &Track, muted: bool) {
+    log::info!("[TRACK] set_muted({}) ENTER", muted);
     let info = inner.info.read();
     if info.muted == muted {
+        log::info!("[TRACK] set_muted already {}, skip", muted);
         return;
     }
     drop(info);
 
+    log::info!("[TRACK] set_muted calling set_enabled({})", !muted);
     if muted {
         inner.rtc_track.set_enabled(false);
     } else {
@@ -211,14 +214,21 @@ pub(super) fn set_muted(inner: &Arc<TrackInner>, track: &Track, muted: bool) {
     }
 
     inner.info.write().muted = muted;
+    log::info!("[TRACK] set_muted firing callbacks for muted={}", muted);
 
     if muted {
         if let Some(on_mute) = inner.events.lock().muted.as_ref() {
+            log::info!("[TRACK] set_muted calling on_mute callback");
             on_mute(track.clone());
+            log::info!("[TRACK] set_muted on_mute callback returned");
         }
     } else if let Some(on_unmute) = inner.events.lock().unmuted.as_ref() {
+        log::info!("[TRACK] set_muted calling on_unmute callback");
         on_unmute(track.clone());
+        log::info!("[TRACK] set_muted on_unmute callback returned");
     }
+
+    log::info!("[TRACK] set_muted DONE");
 }
 
 pub(super) fn update_info(inner: &Arc<TrackInner>, _track: &Track, new_info: proto::TrackInfo) {

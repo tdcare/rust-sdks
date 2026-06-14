@@ -102,15 +102,16 @@ fn nv21_to_i420_into(src: &[u8], width: u32, height: u32, stride: u32, dst: &mut
 
 /// Convert NV21 → rotated I420 in a single pass.
 ///
-/// Performs NV21→I420 conversion, stride de-padding, and 90° CCW rotation
+/// Performs NV21→I420 conversion, stride de-padding, and rotation
 /// in one scan, writing directly into the caller-provided `dst` buffer.
 ///
-/// 90° CCW is the standard frame orientation produced by the OHOS
-/// camera-to-encoder pipeline.  For `rotation == 0`, a plain NV21→I420
-/// conversion without rotation is performed.
+/// Supported rotations:
+/// - `0`   — no rotation
+/// - `90`  — 90° clockwise (used by OHOS back camera)
+/// - `270` — 90° counter-clockwise (used by OHOS front camera)
 ///
 /// # Panics
-/// Panics if `rotation` is neither 0 nor 270.
+/// Panics if `rotation` is not one of 0, 90, or 270.
 fn nv21_to_i420_rotated(
     src: &[u8],
     width: u32,
@@ -128,9 +129,10 @@ fn nv21_to_i420_rotated(
         return;
     }
 
-    assert_eq!(rotation, 270, "NV21 rotated only supports 270° (got {rotation}°)");
+    assert!(rotation == 90 || rotation == 270, "NV21 rotated only supports 90° or 270° (got {rotation}°)");
+    let is_cw90 = rotation == 90;
 
-    // 90° CCW (= 270° CW): input W×H → output H×W.
+    // Both 90° and 270° rotations: input W×H → output H×W.
     let out_w = h;
     let out_h = w;
     let half_w = (w + 1) / 2;
@@ -142,13 +144,18 @@ fn nv21_to_i420_rotated(
 
     dst.resize(i420_len, 0u8);
 
-    // ── Y plane: 90° CCW rotation ──
+    // ── Y plane rotation ──
     for src_y in 0..h {
         for src_x in 0..w {
             let src_off = src_y * s + src_x;
             if src_off < src.len() {
-                let dst_x = src_y;
-                let dst_y = w - 1 - src_x;
+                let (dst_x, dst_y) = if is_cw90 {
+                    // 90° CW: src(x,y) → dst(h-1-y, x)
+                    (h - 1 - src_y, src_x)
+                } else {
+                    // 90° CCW (= 270° CW): src(x,y) → dst(y, w-1-x)
+                    (src_y, w - 1 - src_x)
+                };
                 let dst_off = dst_y * out_w + dst_x;
                 if dst_off < y_size {
                     dst[dst_off] = src[src_off];
@@ -167,8 +174,13 @@ fn nv21_to_i420_rotated(
             if vu_off + 1 < vu_src.len() {
                 let v = vu_src[vu_off];
                 let u = vu_src[vu_off + 1];
-                let dst_x = src_y;
-                let dst_y = half_w - 1 - src_x;
+                let (dst_x, dst_y) = if is_cw90 {
+                    // 90° CW: src(x,y) → dst(half_h-1-y, x)
+                    (half_h - 1 - src_y, src_x)
+                } else {
+                    // 90° CCW: src(x,y) → dst(y, half_w-1-x)
+                    (src_y, half_w - 1 - src_x)
+                };
                 let u_dst = y_size + dst_y * cw + dst_x;
                 let v_dst = y_size + cw * ch + dst_y * cw + dst_x;
                 if u_dst < dst.len() {

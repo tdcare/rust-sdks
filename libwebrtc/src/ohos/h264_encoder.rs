@@ -709,11 +709,19 @@ fn i420_to_nv12_into(i420: &[u8], width: u32, height: u32, dst: &mut Vec<u8>) {
 
 impl Drop for H264Encoder {
     fn drop(&mut self) {
+        eprintln!("[H264Encoder] Drop START: frames={}, codec={:?}", self.frame_count, self.codec);
         self.is_running.store(false, Ordering::SeqCst);
         if !self.codec.is_null() {
-            unsafe { OH_VideoEncoder_Stop(self.codec); OH_VideoEncoder_Destroy(self.codec); }
+            eprintln!("[H264Encoder] calling OH_VideoEncoder_Stop...");
+            unsafe { OH_VideoEncoder_Stop(self.codec); }
+            eprintln!("[H264Encoder] Stop done, sleeping 50ms to flush callbacks...");
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            eprintln!("[H264Encoder] calling OH_VideoEncoder_Destroy...");
+            unsafe { OH_VideoEncoder_Destroy(self.codec); }
+            eprintln!("[H264Encoder] Destroy done");
             self.codec = null_mut();
         }
         log::info!("[H264Encoder] destroyed after {} frames", self.frame_count);
+        eprintln!("[H264Encoder] Drop DONE");
     }
 }

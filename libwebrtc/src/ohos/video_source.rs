@@ -216,6 +216,7 @@ impl NativeVideoSource {
 
             // (Re)create encoder if resolution changed.
             if slot.last_width != width || slot.last_height != height {
+                eprintln!("[encode_and_send] resolution changed: {}x{} -> {}x{}, replacing encoder...", slot.last_width, slot.last_height, width, height);
                 let kbps = ((width * height * 2) / 1000).max(200);
 
                 // Auto-select codec: H.264 hardware encoder preferred;
@@ -224,6 +225,7 @@ impl NativeVideoSource {
                     match H264Encoder::new(width, height, kbps) {
                         Ok(enc) => {
                             log::info!("[NativeVideoSource] using H264 hw encoder: {width}x{height} @ {kbps}kbps");
+                            eprintln!("[encode_and_send] H264 encoder created, replacing old encoder...");
                             VideoEncoder::H264(enc)
                         }
                         Err(e) => {
@@ -242,7 +244,9 @@ impl NativeVideoSource {
                             }
                         }
                     };
+                eprintln!("[encode_and_send] about to replace slot.encoder (old encoder will Drop now)...");
                 slot.encoder = Some(encoder);
+                eprintln!("[encode_and_send] old encoder dropped, new encoder in place");
                 slot.last_width = width;
                 slot.last_height = height;
             }

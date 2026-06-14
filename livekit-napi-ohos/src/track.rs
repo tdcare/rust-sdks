@@ -94,14 +94,25 @@ impl LkLocalAudioTrack {
     }
 
     /// Mute or unmute the track.
+    ///
+    /// Dispatches the actual mute/unmute operation onto the napi-ohos global
+    /// tokio runtime so that downstream `livekit_runtime::spawn` calls (e.g.
+    /// for signalling `MuteTrackRequest`) do not panic from a bare JS thread.
     #[napi]
     pub fn set_muted(&self, muted: bool) {
-        if let Some(inner) = self.inner.as_ref() {
-            if muted {
-                inner.mute();
-            } else {
-                inner.unmute();
-            }
+        log::info!("[NAPI] LkLocalAudioTrack::set_muted({}) ENTER", muted);
+        if let Some(inner) = self.inner.clone() {
+            log::info!("[NAPI] LkLocalAudioTrack::set_muted spawning on tokio runtime");
+            napi_ohos::bindgen_prelude::spawn(async move {
+                log::info!("[NAPI] LkLocalAudioTrack::set_muted async block START");
+                if muted {
+                    inner.mute();
+                } else {
+                    inner.unmute();
+                }
+                log::info!("[NAPI] LkLocalAudioTrack::set_muted async block DONE");
+            });
+            log::info!("[NAPI] LkLocalAudioTrack::set_muted spawn returned");
         }
     }
 }
@@ -169,14 +180,20 @@ impl LkLocalVideoTrack {
     }
 
     /// Mute or unmute the track.
+    ///
+    /// Dispatches onto the napi-ohos global tokio runtime to avoid bare
+    /// `tokio::spawn` panic on the JS thread (same rationale as the audio
+    /// track variant).
     #[napi]
     pub fn set_muted(&self, muted: bool) {
-        if let Some(inner) = self.inner.as_ref() {
-            if muted {
-                inner.mute();
-            } else {
-                inner.unmute();
-            }
+        if let Some(inner) = self.inner.clone() {
+            napi_ohos::bindgen_prelude::spawn(async move {
+                if muted {
+                    inner.mute();
+                } else {
+                    inner.unmute();
+                }
+            });
         }
     }
 }
@@ -337,14 +354,19 @@ impl LkLocalTrackPublication {
     }
 
     /// Mute or unmute the publication.
+    ///
+    /// Dispatches onto the napi-ohos global tokio runtime to avoid bare
+    /// `tokio::spawn` panic on the JS thread.
     #[napi]
     pub fn set_muted(&self, muted: bool) {
-        if let Some(inner) = self.inner.as_ref() {
-            if muted {
-                inner.mute();
-            } else {
-                inner.unmute();
-            }
+        if let Some(inner) = self.inner.clone() {
+            napi_ohos::bindgen_prelude::spawn(async move {
+                if muted {
+                    inner.mute();
+                } else {
+                    inner.unmute();
+                }
+            });
         }
     }
 }

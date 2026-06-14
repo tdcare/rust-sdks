@@ -685,12 +685,12 @@ impl YuvRenderer {
         let buf_size = (*handle).size as usize;
         let buf_fd = (*handle).fd;
 
-        // Derive actual stride from total buffer size
-        let actual_stride = if h > 0 && buf_size >= min_stride * h {
-            buf_size / h
-        } else {
-            min_stride
-        };
+        // Use min_stride (= frame_width * 4) as the RGBA row stride.
+        // Computing stride from buf_size/h is unreliable because the DMA-BUF
+        // may be page-aligned, making buf_size > stride * h.
+        // Since we explicitly configure buffer geometry via nw_set_buffer_geometry,
+        // the display hardware reads with stride = frame_width * 4.
+        let actual_stride = min_stride;
 
         let required_size = min_stride * h;
         if buf_size < required_size {
@@ -706,8 +706,8 @@ impl YuvRenderer {
         let vir_addr: *mut u8 = if pre_mapped {
             if self.frame_count == 0 {
                 log::info!(
-                    "[YuvRenderer] Using HandleVirAddr: {}x{}, buf_size={}, stride={}, actual_stride={}, fd={}",
-                    w, h, buf_size, (*handle).stride, actual_stride, buf_fd
+                    "[YuvRenderer] Using HandleVirAddr: {}x{}, buf_size={}, stride={} (min={}), fd={}",
+                    w, h, buf_size, (*handle).stride, min_stride, buf_fd
                 );
             }
             self.access_method = BufferAccessMethod::HandleVirAddr;
@@ -738,8 +738,8 @@ impl YuvRenderer {
             }
             if self.frame_count == 0 {
                 log::info!(
-                    "[YuvRenderer] Using HandleMmap: {}x{}, buf_size={}, stride={}, actual_stride={}, fd={}",
-                    w, h, buf_size, (*handle).stride, actual_stride, buf_fd
+                    "[YuvRenderer] Using HandleMmap: {}x{}, buf_size={}, stride={} (min={}), fd={}",
+                    w, h, buf_size, (*handle).stride, min_stride, buf_fd
                 );
             }
             self.access_method = BufferAccessMethod::HandleMmap;

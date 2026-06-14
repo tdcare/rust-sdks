@@ -104,7 +104,8 @@ export class VideoCaptureService {
    * @param context   UIAbilityContext for CameraManager
    * @param previewSurfaceId  Optional XComponent surface ID for local preview display
    */
-  async initialize(context: common.Context, previewSurfaceId?: string): Promise<boolean> {
+  async initialize(context: common.Context, previewSurfaceId?: string,
+    existingSource?: LkVideoSource): Promise<boolean> {
     // Store for foreground recovery
     globalThis.storedContext = context;
     globalThis.storedPreviewSurfaceId = previewSurfaceId ?? '';
@@ -193,12 +194,19 @@ export class VideoCaptureService {
       await this.session.commitConfig();
       hilog.info(0x0000, TAG, 'Session configured');
 
-      // 11. Recreate LkVideoSource with actual camera resolution BEFORE starting session.
-      //     This ensures frames arriving immediately after session.start() are pushed
-      //     to a correctly-sized source, avoiding buffer size mismatches.
-      this.source = new LkVideoSource(this.actualWidth, this.actualHeight);
-      hilog.info(0x0000, TAG,
-        `LkVideoSource recreated with ${this.actualWidth}x${this.actualHeight}`);
+      // 11. Reuse or create LkVideoSource with actual camera resolution.
+      //     When restarting (e.g. camera switch), reuse the existing source to
+      //     avoid dropping a temporary LkVideoSource on the JS thread — the
+      //     Drop of H264Encoder calls OH_VideoEncoder_Destroy which must run
+      //     on an OHOS media thread, not the JS GC thread.
+      if (existingSource !== undefined && existingSource !== null) {
+        this.source = existingSource;
+        hilog.info(0x0000, TAG, `LkVideoSource reused: ${this.actualWidth}x${this.actualHeight}`);
+      } else {
+        this.source = new LkVideoSource(this.actualWidth, this.actualHeight);
+        hilog.info(0x0000, TAG,
+          `LkVideoSource recreated with ${this.actualWidth}x${this.actualHeight}`);
+      }
 
       // 12. Set running=true BEFORE session.start() so the ImageReceiver callback
       //     starts processing frames as soon as the camera pipeline produces them.
@@ -224,6 +232,9 @@ export class VideoCaptureService {
   /**
    * Start video capture (enable frame processing in ImageReceiver callback).
    * Must be called after initialize().
+   *
+   * If the session was previously stopped (e.g. via stop()), this restarts
+   * the camera session so that the ImageReceiver begins delivering frames again.
    */
   async start(): Promise<void> {
     if (!this.initialized) {
@@ -235,8 +246,23 @@ export class VideoCaptureService {
         'Video capture already running (was started in initialize)');
       return;
     }
+
+    // Restart the camera session if it was stopped
+    if (this.session !== null) {
+      try {
+        await this.session.start();
+        hilog.info(0x0000, TAG, 'Camera session restarted');
+      } catch (e) {
+        const err = e as BusinessError;
+        hilog.error(0x0000, TAG,
+          `Failed to restart camera session: ${err.message} (code=${err.code})`);
+        throw new Error(`Camera session restart failed: ${err.message}`);
+      }
+    }
+
     this.running = true;
     this.frameCount = 0;
+    this.lastForegroundTick = Date.now();
     hilog.info(0x0000, TAG,
       `Video capture started (${this.actualWidth}x${this.actualHeight})`);
   }
@@ -257,17 +283,23 @@ export class VideoCaptureService {
       return;
     }
     // Save the existing LkVideoSource — it's already published to the room.
-    // Creating a new one would break the publish pipeline.
+    // Pass it to initialize() to avoid creating a temp source that gets
+    // dropped on the JS GC thread (which would crash H264Encoder::Drop).
     const savedSource = this.source;
     await this.release();
-    this.source = savedSource;
     this.initialized = false;
     this.running = false;
-    await this.initialize(ctx, surfaceId);
-    // initialize() may create a new source; restore to keep published track working
-    if (this.source !== savedSource) {
-      hilog.info(0x0000, TAG, 'Restoring saved LkVideoSource after restart');
-      this.source = savedSource;
+    await this.initialize(ctx, surfaceId, savedSource);
+  }
+
+  switchCamera(position: 'front' | 'back'): void {
+    if (this.config.cameraPosition === position) return;
+    hilog.info(0x0000, TAG, 'switchCamera %{public}s->%{public}s', this.config.cameraPosition, position);
+    this.config.cameraPosition = position;
+    if (this.running) {
+      this.restartCamera().catch((e: Error) => {
+        hilog.error(0x0000, TAG, 'switchCamera failed');
+      });
     }
   }
 

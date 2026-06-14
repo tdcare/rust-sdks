@@ -608,29 +608,82 @@ impl NativeVideoStream {
         // NV12 layout: Y plane (width*height) followed by interleaved UV
         // plane (width*height/2). We split the UV plane into separate U and
         // V arrays as expected by I420.
-        let y_size = (width as usize) * (height as usize);
-        let chroma_size = y_size / 4;
+        //
+        // OHOS hardware codec may pad rows to alignment boundaries (e.g. 64
+        // bytes), so we detect and handle stride-padded NV12.
+        let w = width as usize;
+        let h = height as usize;
+        let cw = (w + 1) / 2;
+        let ch = (h + 1) / 2;
+        let y_size = w * h;
+        let chroma_size = y_size / 4; // = cw * ch
 
         let data = &decoded.data;
-        let y_end = y_size.min(data.len());
-        let y_plane = &data[..y_end];
-        let uv_plane: &[u8] = if data.len() > y_size { &data[y_size..] } else { &[] };
+        let compact_nv12 = y_size + y_size / 2; // w*h*3/2
 
-        let mut u_plane = Vec::with_capacity(chroma_size);
-        let mut v_plane = Vec::with_capacity(chroma_size);
-        for chunk in uv_plane.chunks_exact(2) {
-            u_plane.push(chunk[0]);
-            v_plane.push(chunk[1]);
+        // Detect stride padding: for NV12, total = stride_y * h + stride_y * ch
+        // → stride_y = data.len() * 2 / (3 * h)
+        let stride_y = if data.len() > compact_nv12 && h > 0 {
+            data.len() * 2 / (3 * h)
+        } else {
+            w
+        };
+
+        if stride_y != w && (stride_y as i64 - w as i64).abs() > 4 {
+            eprintln!(
+                "[H264->I420] STRIDE_PAD: {}x{}, stride_y={} (width={}), data_len={} vs compact={}",
+                w, h, stride_y, w, data.len(), compact_nv12
+            );
         }
+
+        let (y_vec, u_vec, v_vec) = if stride_y == w {
+            // Fast path: no stride padding
+            let y_end = y_size.min(data.len());
+            let y_plane = &data[..y_end];
+            let uv_plane: &[u8] = if data.len() > y_size { &data[y_size..] } else { &[] };
+
+            let mut u_plane = Vec::with_capacity(chroma_size);
+            let mut v_plane = Vec::with_capacity(chroma_size);
+            for chunk in uv_plane.chunks_exact(2) {
+                u_plane.push(chunk[0]);
+                v_plane.push(chunk[1]);
+            }
+            (y_plane.to_vec(), u_plane, v_plane)
+        } else {
+            // Stride-padded NV12: extract Y and UV without padding bytes
+            let mut y_plane = Vec::with_capacity(y_size);
+            for row in 0..h {
+                let start = row * stride_y;
+                let end = start + w;
+                if end <= data.len() {
+                    y_plane.extend_from_slice(&data[start..end]);
+                }
+            }
+
+            let mut u_plane = Vec::with_capacity(chroma_size);
+            let mut v_plane = Vec::with_capacity(chroma_size);
+            let uv_start = h * stride_y;
+            for row in 0..ch {
+                let start = uv_start + row * stride_y;
+                for col in 0..cw {
+                    let idx = start + col * 2;
+                    if idx + 1 < data.len() {
+                        u_plane.push(data[idx]);
+                        v_plane.push(data[idx + 1]);
+                    }
+                }
+            }
+            (y_plane, u_plane, v_plane)
+        };
 
         let mut buffer = I420Buffer::new(width, height);
         let (dy, du, dv) = buffer.data_mut();
-        let copy_y = y_plane.len().min(dy.len());
-        dy[..copy_y].copy_from_slice(&y_plane[..copy_y]);
-        let copy_u = u_plane.len().min(du.len());
-        du[..copy_u].copy_from_slice(&u_plane[..copy_u]);
-        let copy_v = v_plane.len().min(dv.len());
-        dv[..copy_v].copy_from_slice(&v_plane[..copy_v]);
+        let copy_y = y_vec.len().min(dy.len());
+        dy[..copy_y].copy_from_slice(&y_vec[..copy_y]);
+        let copy_u = u_vec.len().min(du.len());
+        du[..copy_u].copy_from_slice(&u_vec[..copy_u]);
+        let copy_v = v_vec.len().min(dv.len());
+        dv[..copy_v].copy_from_slice(&v_vec[..copy_v]);
 
         let boxed: BoxVideoBuffer = Box::new(buffer);
         VideoFrame {

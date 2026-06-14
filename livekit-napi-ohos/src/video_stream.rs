@@ -178,6 +178,15 @@ impl LkVideoStream {
         };
 
         let (y, u, v) = i420.data();
+        let (stride_y, stride_u, stride_v) = i420.strides();
+        let expected_y = (width as usize) * (height as usize);
+        let expected_uv = ((width as usize + 1) / 2) * ((height as usize + 1) / 2);
+        if y.len() != expected_y || stride_y != width {
+            eprintln!(
+                "[LkVideoStream] I420 STRIDE! {}x{}, Y: len={} stride={} (expected_len={}), U: len={} stride={} (expected={}), V: len={} stride={}",
+                width, height, y.len(), stride_y, expected_y, u.len(), stride_u, expected_uv, v.len(), stride_v
+            );
+        }
         let mut i420_buf = Vec::with_capacity(y.len() + u.len() + v.len());
         i420_buf.extend_from_slice(y);
         i420_buf.extend_from_slice(u);
