@@ -1,4 +1,4 @@
-﻿import { audio } from '@kit.AudioKit';
+import { audio } from '@kit.AudioKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { LkAudioSource } from 'liblivekit.so';
 
@@ -87,7 +87,7 @@ export class AudioCaptureService {
         // or empty buffer. Tight poll loop ensures we catch mic data
         // as soon as it becomes available.
         const capturer = this.capturer!;
-        const rawBuffer: ArrayBuffer = await capturer.read(BUFFER_SIZE, false);
+        const rawBuffer: ArrayBuffer = await capturer.read(BUFFER_SIZE, true);
         if (rawBuffer && rawBuffer.byteLength > 0) {
           const buffer: ArrayBuffer = rawBuffer.slice(0);
           const actualSamples = Math.floor(buffer.byteLength / (CHANNELS * 2));
