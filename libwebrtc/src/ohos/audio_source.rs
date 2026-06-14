@@ -115,7 +115,7 @@ impl NativeAudioSource {
     }
 
     pub(crate) fn bind_rtp_pipeline(&self, pipeline: RtpSendPipeline) {
-        log::error!("[NativeAudioSource] bind_rtp_pipeline: audio RTP pipeline BOUND, ssrc={}", pipeline.ssrc());
+        log::info!("[NativeAudioSource] bind_rtp_pipeline: audio RTP pipeline BOUND, ssrc={}", pipeline.ssrc());
         *self.rtp_pipeline.lock() = Some(pipeline);
     }
 
@@ -161,7 +161,7 @@ impl NativeAudioSource {
         encoder.set_bitrate(opus::Bitrate::Bits(64000)).ok();
         encoder.set_inband_fec(true).ok();
         state.encoder = Some(encoder);
-        log::error!("[NativeAudioSource] Opus encoder initialised: rate={} ch={}", sample_rate, num_channels);
+        log::info!("[NativeAudioSource] Opus encoder initialised: rate={} ch={}", sample_rate, num_channels);
         Ok(())
     }
 
@@ -173,7 +173,7 @@ impl NativeAudioSource {
             let n = ENCODE_ENTRY_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
             let buf_len = self.encoder_state.lock().buffer.len();
             if n == 1 || n % 100 == 0 {
-                log::error!("[NativeAudioSource] encode_and_send ENTRY #{}: buffer_len={} pcm_samples",
+                log::trace!("[NativeAudioSource] encode_and_send ENTRY #{}: buffer_len={} pcm_samples",
                     n, buf_len);
             }
         }
@@ -281,7 +281,7 @@ impl NativeAudioSource {
                 let fc = state.send_fail_count;
                 drop(state);
                 if fc == 1 || fc % 50 == 0 {
-                    log::error!("[NativeAudioSource] send_encoded_audio FAILED (#{}): {}", fc, e.message);
+                    log::warn!("[NativeAudioSource] send_encoded_audio FAILED (#{}): {}", fc, e.message);
                 }
             }
         }
@@ -293,7 +293,7 @@ impl NativeAudioSource {
             static CAPTURE_COUNT: AtomicU64 = AtomicU64::new(0);
             let n = CAPTURE_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
             if n == 1 || n % 100 == 0 {
-                log::error!("[NativeAudioSource] capture_frame ENTRY #{}: PCM samples={} rate={} ch={}",
+                log::trace!("[NativeAudioSource] capture_frame ENTRY #{}: PCM samples={} rate={} ch={}",
                     n, frame.data.len(), frame.sample_rate, frame.num_channels);
             }
         }

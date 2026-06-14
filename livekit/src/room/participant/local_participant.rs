@@ -458,9 +458,9 @@ impl LocalParticipant {
             }
         }
 
-        log::error!("[LocalParticipant] publish_track OK, triggering publisher_negotiation_needed for track={}", track.rtc_track().id());
+        log::debug!("[LocalParticipant] publish_track OK, triggering publisher_negotiation_needed for track={}", track.rtc_track().id());
         self.inner.rtc_engine.publisher_negotiation_needed();
-        log::error!("[LocalParticipant] publisher_negotiation_needed call returned for track={}", track.rtc_track().id());
+        log::debug!("[LocalParticipant] publisher_negotiation_needed call returned for track={}", track.rtc_track().id());
 
         publication.update_publish_options(options);
         self.add_publication(TrackPublication::Local(publication.clone()));

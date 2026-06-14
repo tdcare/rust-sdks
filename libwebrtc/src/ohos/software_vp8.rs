@@ -260,7 +260,7 @@ impl SoftwareVP8Encoder {
         match result {
             Ok(success) => success,
             Err(_) => {
-                log::error!("[SW-VP8Enc] 编码过程中发生 panic，已捕获");
+                log::warn!("[SW-VP8Enc] 编码过程中发生 panic，已捕获");
                 false
             }
         }

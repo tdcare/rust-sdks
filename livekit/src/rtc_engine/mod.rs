@@ -346,7 +346,7 @@ impl RtcEngine {
         options: TrackPublishOptions,
         encodings: Vec<RtpEncodingParameters>,
     ) -> EngineResult<RtpTransceiver> {
-        log::error!("[RTCEngine] create_sender ENTRY: track_id={}", track.rtc_track().id());
+        log::debug!("[RTCEngine] create_sender ENTRY: track_id={}", track.rtc_track().id());
         // When creating a new RtpSender, make sure we're always using the latest session
         let (session, _r_lock) = {
             let (handle, _r_lock) = self.inner.wait_reconnection().await?;
@@ -358,7 +358,7 @@ impl RtcEngine {
         // Trigger renegotiation directly on the session while we still have it.
         // Avoid the async-spawn path in publisher_negotiation_needed() which may
         // not execute reliably on all platforms (e.g. OHOS).
-        log::error!("[RTCEngine] create_sender OK, triggering negotiation directly on session");
+        log::debug!("[RTCEngine] create_sender OK, triggering negotiation directly on session");
         session.publisher_negotiation_needed();
 
         Ok(transceiver)
@@ -366,16 +366,16 @@ impl RtcEngine {
 
     pub fn publisher_negotiation_needed(&self) {
         let inner = self.inner.clone();
-        log::error!("[RTCEngine] publisher_negotiation_needed: spawning task");
+        log::debug!("[RTCEngine] publisher_negotiation_needed: spawning task");
         livekit_runtime::spawn(async move {
-            log::error!("[RTCEngine] publisher_negotiation_needed: task started, calling wait_reconnection");
+            log::debug!("[RTCEngine] publisher_negotiation_needed: task started, calling wait_reconnection");
             match inner.wait_reconnection().await {
                 Ok((handle, _)) => {
-                    log::error!("[RTCEngine] publisher_negotiation_needed: wait_reconnection OK, calling session");
+                    log::debug!("[RTCEngine] publisher_negotiation_needed: wait_reconnection OK, calling session");
                     handle.session.publisher_negotiation_needed()
                 }
                 Err(e) => {
-                    log::error!("[RTCEngine] publisher_negotiation_needed: wait_reconnection failed: {:?}", e);
+                    log::warn!("[RTCEngine] publisher_negotiation_needed: wait_reconnection failed: {:?}", e);
                 }
             }
         });
