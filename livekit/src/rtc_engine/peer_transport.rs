@@ -125,8 +125,15 @@ impl PeerTransport {
 
         inner.restarting_ice = false;
 
-        if inner.renegotiate {
-            inner.renegotiate = false;
+        // MUST drop the lock before calling create_and_send_offer — it
+        // acquires inner.lock() internally and tokio::sync::Mutex is not
+        // reentrant.
+        let renegotiate = inner.renegotiate;
+        inner.renegotiate = false;
+        drop(inner);
+
+        if renegotiate {
+            log::info!("[PeerTransport] set_remote_description: triggering deferred renegotiation");
             self.create_and_send_offer(OfferOptions::default()).await?;
         }
 
@@ -366,11 +373,21 @@ impl PeerTransport {
 
     pub async fn create_and_send_offer(&self, options: OfferOptions) -> EngineResult<()> {
         let mut inner = self.inner.lock().await;
+
+        log::info!(
+            "[PeerTransport] create_and_send_offer: ice_restart={}, signaling_state={:?}, has_pending_initial={}, has_remote_desc={}",
+            options.ice_restart,
+            self.peer_connection.signaling_state(),
+            inner.pending_initial_offer.is_some(),
+            self.peer_connection.current_remote_description().is_some(),
+        );
+
         if options.ice_restart {
             inner.restarting_ice = true;
         }
 
         if inner.pending_initial_offer.is_some() {
+            log::info!("[PeerTransport] deferring offer (pending initial), marking renegotiate");
             inner.renegotiate = true;
             return Ok(());
         }

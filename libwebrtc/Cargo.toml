@@ -44,6 +44,7 @@ rtc-datachannel = { workspace = true }
 rtc-dtls = { workspace = true }
 rtc-ice = { workspace = true }
 rtc-rtp = { workspace = true }
+rtc-rtcp = { workspace = true }
 rtc-srtp = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "net", "sync", "time", "macros"] }
 parking_lot = { workspace = true }
