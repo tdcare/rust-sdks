@@ -535,10 +535,6 @@ struct RoomPage {
       this.statusText = 'Starting camera...';
       hilog.info(0x0000, TAG, 'UI connected=true, XComponent loading...');
 
-      // 4. Start audio capture (runs in parallel with XComponent loading)
-      await this.audioCapture.start();
-      hilog.info(0x0000, TAG, 'Audio capture started');
-
       // 5. Delay to let the UI framework render the XComponent.
       //    Longer delay (1000ms) for slower OHOS API 12 devices.
       await new Promise<void>((resolve) => {
@@ -598,7 +594,8 @@ struct RoomPage {
       await this.room.localParticipant!.publishAudioTrack(audioTrack);
         hilog.info(0x0000, TAG, 'Audio track published OK');
 
-        // Start audio capture NOW — after track is published so RTP pipeline is ready
+        // Start audio capture with 2s delay to ensure RTP pipeline is ready
+        await new Promise<void>((r) => setTimeout(r, 2000));
         await this.audioCapture.start();
         hilog.info(0x0000, TAG, 'Audio capture started');
       hilog.info(0x0000, TAG, 'Audio track published OK');
