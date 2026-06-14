@@ -552,7 +552,7 @@ impl Default for SoftwareVP8DecoderConfig {
 #[derive(Clone)]
 pub struct DecodedFrame {
     /// I420 格式数据
-    pub i420_data: Vec<u8>,
+    pub self.dec_output_scratch: Vec<u8>,
     pub width: u32,
     pub height: u32,
     pub timestamp_us: i64,
@@ -566,6 +566,7 @@ pub struct SoftwareVP8Decoder {
     is_initialized: AtomicBool,
     /// 解码失败计数（用于限制日志输出）
     decode_error_count: u32,
+    dec_output_scratch: Vec<u8>,
 }
 
 unsafe impl Send for SoftwareVP8Decoder {}
@@ -589,6 +590,7 @@ impl SoftwareVP8Decoder {
             output_queue: VecDeque::new(),
             is_initialized: AtomicBool::new(false),
             decode_error_count: 0,
+            dec_output_scratch: Vec::new(),
         }
     }
     
@@ -699,14 +701,14 @@ impl SoftwareVP8Decoder {
                 let total_size = y_size + u_size + v_size;
                 
                 // 分配输出缓冲区
-                let mut i420_data = vec![0u8; total_size];
+                self.dec_output_scratch.resize(total_size, 0u8);
                 
                 // 复制 Y 平面
                 let y_stride = (*img).stride[0] as usize;
                 for row in 0..height as usize {
                     ptr::copy_nonoverlapping(
                         (*img).planes[0].add(row * y_stride),
-                        i420_data.as_mut_ptr().add(row * width as usize),
+                        self.dec_output_scratch.as_mut_ptr().add(row * width as usize),
                         width as usize,
                     );
                 }
@@ -718,7 +720,7 @@ impl SoftwareVP8Decoder {
                 for row in 0..uv_height {
                     ptr::copy_nonoverlapping(
                         (*img).planes[1].add(row * u_stride),
-                        i420_data.as_mut_ptr().add(y_size + row * uv_width),
+                        self.dec_output_scratch.as_mut_ptr().add(y_size + row * uv_width),
                         uv_width,
                     );
                 }
@@ -728,13 +730,13 @@ impl SoftwareVP8Decoder {
                 for row in 0..uv_height {
                     ptr::copy_nonoverlapping(
                         (*img).planes[2].add(row * v_stride),
-                        i420_data.as_mut_ptr().add(y_size + u_size + row * uv_width),
+                        self.dec_output_scratch.as_mut_ptr().add(y_size + u_size + row * uv_width),
                         uv_width,
                     );
                 }
                 
                 self.output_queue.push_back(DecodedFrame {
-                    i420_data,
+                    self.dec_output_scratch,
                     width,
                     height,
                     timestamp_us,

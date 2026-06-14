@@ -141,7 +141,7 @@ pub(crate) struct RtpPacketData {
     pub timestamp: u32,
     pub ssrc: u32,
     pub marker: bool,
-    pub payload: Vec<u8>,
+    pub payload: Bytes,
 }
 
 /// Received RTP packet (after SRTP decryption by the rtc crate).

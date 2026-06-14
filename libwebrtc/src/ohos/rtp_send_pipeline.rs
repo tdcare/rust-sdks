@@ -22,6 +22,7 @@
 use tokio::sync::mpsc;
 
 use super::rtc_io_driver::{ControlCommand, RtpPacketData};
+use bytes::Bytes;
 use super::rtp_packetizer;
 use crate::{RtcError, RtcErrorType};
 
@@ -176,7 +177,7 @@ impl RtpSendPipeline {
             timestamp: rtp_ts,
             ssrc: self.ssrc,
             marker: true,
-            payload: data.to_vec(),
+            payload: Bytes::copy_from_slice(data),
         };
 
         self.send_packet(packet)

@@ -18,6 +18,7 @@
 //! later wraps each fragment in an `rtp::Packet` and feeds it through the
 //! SRTP/ICE pipeline.
 
+use bytes::Bytes;
 use super::rtc_io_driver::RtpPacketData;
 
 /// Maximum RTP payload size to avoid IP fragmentation
@@ -30,7 +31,7 @@ const H264_NAL_TYPE_FU_A: u8 = 28;
 /// A single RTP payload ready for transmission.
 #[derive(Debug, Clone)]
 pub(crate) struct RtpFragment {
-    pub payload: Vec<u8>,
+    pub payload: Bytes,
     pub marker: bool,
 }
 
@@ -62,7 +63,7 @@ pub(crate) fn pack_h264_frame(annexb_data: &[u8]) -> Vec<RtpFragment> {
 
         if nalu.len() <= MAX_RTP_PAYLOAD_SIZE {
             // Single NALU packet: payload IS the NALU bytes (header + RBSP).
-            fragments.push(RtpFragment { payload: nalu.to_vec(), marker: is_last_picture });
+            fragments.push(RtpFragment { payload: Bytes::copy_from_slice(nalu), marker: is_last_picture });
         } else {
             pack_h264_fua(nalu, is_last_picture, &mut fragments);
         }
@@ -190,7 +191,7 @@ pub(crate) fn pack_vp8_frame(vp8_data: &[u8], is_key_frame: bool, picture_id: u1
         }
         payload.extend_from_slice(&vp8_data[offset..offset + chunk]);
 
-        fragments.push(RtpFragment { payload, marker: is_last });
+        fragments.push(RtpFragment { payload: Bytes::from(payload), marker: is_last });
 
         offset += chunk;
         is_first = false;
@@ -206,7 +207,7 @@ pub(crate) fn pack_vp8_frame(vp8_data: &[u8], is_key_frame: bool, picture_id: u1
 /// Pack an Opus audio frame. Opus frames at typical bitrates always fit
 /// inside a single RTP packet, so no fragmentation is required.
 pub(crate) fn pack_opus_frame(opus_data: &[u8]) -> RtpFragment {
-    RtpFragment { payload: opus_data.to_vec(), marker: true }
+    RtpFragment { payload: Bytes::copy_from_slice(opus_data), marker: true }
 }
 
 // ---------------------------------------------------------------------------

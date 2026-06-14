@@ -112,7 +112,7 @@ export class AudioCaptureService {
             hilog.info(0x0000, TAG, 'readLoop: no data ready (empty count=%{public}d)', emptyCount);
           }
           // 1ms yield: tight enough for 10ms audio frames.
-          await new Promise<void>((r) => setTimeout(r, 1));
+          await new Promise<void>((r) => setTimeout(r, 5));
         }
       } catch (err) {
         if (!this.running) break;
