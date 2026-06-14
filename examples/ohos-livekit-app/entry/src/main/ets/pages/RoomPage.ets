@@ -1,4 +1,4 @@
-﻿import { hilog } from '@kit.PerformanceAnalysisKit';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 import { common } from '@kit.AbilityKit';
 import { router } from '@kit.ArkUI';
 import { LkRoom, LkLocalAudioTrack, LkLocalVideoTrack, LkRemoteVideoTrack, LkRemoteAudioTrack } from 'liblivekit.so';
@@ -590,12 +590,20 @@ struct RoomPage {
       this.localAudioTrack = audioTrack;
       this.localVideoTrack = videoTrack;
 
-      // 9. Publish tracks
+      // 9. Publish tracks sequentially — audio first, then video.
+      //    The second publish triggers an SDP renegotiation, but the
+      //    ICE host-candidate re-injection fix ensures media continues
+      //    flowing without interruption.
       hilog.info(0x0000, TAG, 'Publishing audio track...');
       await this.room.localParticipant!.publishAudioTrack(audioTrack);
+        hilog.info(0x0000, TAG, 'Audio track published OK');
+
+        // Start audio capture NOW — after track is published so RTP pipeline is ready
+        await this.audioCapture.start();
+        hilog.info(0x0000, TAG, 'Audio capture started');
       hilog.info(0x0000, TAG, 'Audio track published OK');
 
-      hilog.info(0x0000, TAG, 'Publishing video track (auto-detect codec, Camera source)...');
+      hilog.info(0x0000, TAG, 'Publishing video track...');
       await this.room.localParticipant!.publishVideoTrack(videoTrack);
       hilog.info(0x0000, TAG, 'Video track published OK');
 
