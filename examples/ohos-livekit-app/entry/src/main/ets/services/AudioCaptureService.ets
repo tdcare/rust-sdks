@@ -87,7 +87,10 @@ export class AudioCaptureService {
         // or empty buffer. Tight poll loop ensures we catch mic data
         // as soon as it becomes available.
         const capturer = this.capturer!;
-        const rawBuffer: ArrayBuffer = await capturer.read(BUFFER_SIZE, true);
+                const rawBuffer: ArrayBuffer = await Promise.race([
+          capturer.read(BUFFER_SIZE, false),
+          new Promise<ArrayBuffer>((resolve) => setTimeout(() => resolve(new ArrayBuffer(0)), 3000))
+        ]);
         if (rawBuffer && rawBuffer.byteLength > 0) {
           const buffer: ArrayBuffer = rawBuffer.slice(0);
           const actualSamples = Math.floor(buffer.byteLength / (CHANNELS * 2));
