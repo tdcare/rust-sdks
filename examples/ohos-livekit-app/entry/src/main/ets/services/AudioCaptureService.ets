@@ -67,7 +67,7 @@ export class AudioCaptureService {
     let frameCount = 0;
     let emptyCount = 0;
     let recreateCount = 0;
-    hilog.info(0x0000, TAG, 'readLoop entered (non-blocking mode, buffer=%{public}d bytes)', BUFFER_SIZE);
+    hilog.info(0x0000, TAG, 'readLoop entered (non-blocking + 3s timeout, buffer=%{public}d bytes)', BUFFER_SIZE);
     while (this.running) {
       // Recreate capturer if we don't have one or after too many errors.
       if (!this.capturer) {
