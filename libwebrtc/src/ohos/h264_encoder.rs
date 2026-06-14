@@ -487,6 +487,10 @@ fn i420_to_nv12_into(i420: &[u8], width: u32, height: u32, dst: &mut Vec<u8>) {
                 self.frame_count, self.width, self.height,
                 self.user_data.pending_frames.lock().len(), out);
         }
+        // Manually drain pending frames into the encoder. On some devices
+        // (e.g. Huawei X5) the OH_AVCodec callbacks may fire unreliably or
+        // not at all, so the active drain path is essential.
+        self.drain_pending();
         Ok(self.poll_output())
     }
 

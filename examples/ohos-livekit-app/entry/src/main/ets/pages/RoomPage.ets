@@ -249,9 +249,6 @@ struct RoomPage {
         Text(`呼叫ID: ${this.currentCallId}`)
           .fontSize(11)
           .fontColor('#888888')
-        Text(`目标: ${this.currentTargets.join(', ')}`)
-          .fontSize(11)
-          .fontColor('#888888')
       }
 
       // 级别选择 (快反发起模式)
