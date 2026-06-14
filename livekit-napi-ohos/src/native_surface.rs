@@ -540,8 +540,8 @@ impl YuvRenderer {
 
         let w = frame_width as usize;
         let h = frame_height as usize;
-        let uw = w / 2;
-        let uh = h / 2;
+        let uw = (w + 1) / 2;
+        let uh = (h + 1) / 2;
         let y_size = w * h;
         let uv_size = uw * uh;
 
