@@ -77,12 +77,14 @@ struct RoomPage {
   @State private pipMainIsRemote: boolean = true; // true=远程大画面, false=本地大画面
   @State private pipSmallX: number = 200; // PiP 小窗口 X 位置 (px)
   @State private pipSmallY: number = 8;   // PiP 小窗口 Y 位置 (px)
+  @State private overlayVisible: boolean = true; // 浮动控制层是否可见
+  private overlayHideTimer: number = 0;  // 自动隐藏计时器 ID
   private isTogglingCam: boolean = false; // 防止并发切换摄像头
   private remoteSurfaceId: string = '';   // 远程 XComponent 的 surface ID
   private dragBaseX: number = 0;  // 拖拽起始时 PiP 的 X
   private dragBaseY: number = 0;  // 拖拽起始时 PiP 的 Y
-  private pipContainerW: number = 342; // Stack 容器近似宽度（95% * 360vp），拖拽边界用
-  private pipContainerH: number = 400;
+  private pipContainerW: number = 360; // 全屏容器宽度 (vp)，拖拽边界用
+  private pipContainerH: number = 780; // 全屏容器高度 (vp)，拖拽边界用
 
   // 通话计时
   private callSeconds: number = 0;
@@ -242,88 +244,10 @@ struct RoomPage {
   }
 
   build() {
-    Column({ space: 12 }) {
-      // Title
-      Text(this.isInitiateMode ? 'RRT 快反通话' : 'LiveKit OHOS Demo')
-        .fontSize(24)
-        .fontWeight(FontWeight.Bold)
-        .margin({ top: 20 })
-
-      // Status
-      Text(this.statusText)
-        .fontSize(14)
-        .fontColor(this.connected ? '#00AA00' : '#AA0000')
-
-      // 显示呼叫信息
-      if (this.isInitiateMode && this.currentCallId.length > 0) {
-        Text(`呼叫ID: ${this.currentCallId}`)
-          .fontSize(11)
-          .fontColor('#888888')
-      }
-
-      // 级别选择 (快反发起模式)
-      if (this.showLevelSelect) {
-        Column({ space: 12 }) {
-          Text(this.statusText)
-            .fontSize(18)
-            .fontWeight(FontWeight.Medium)
-            .margin({ top: 16, bottom: 16 })
-
-          ForEach(this.levels, (level: RrtLevel) => {
-            Button(level.levelName)
-              .fontSize(18)
-              .width('80%')
-              .height(52)
-              .margin({ top: 6, bottom: 6 })
-              .onClick(() => { this.onLevelSelected(level.levelCode); })
-          })
-
-          Button('取消')
-            .fontSize(16)
-            .width('60%')
-            .height(44)
-            .backgroundColor('#999999')
-            .margin({ top: 20 })
-            .onClick(() => { router.back(); })
-        }
-        .width('100%')
-        .padding(20)
-        .alignItems(HorizontalAlign.Center)
-      }
-
-      // 发起中状态
-      if (this.initiatingCall && !this.showLevelSelect && !this.connected) {
-        Text(this.statusText)
-          .fontSize(18)
-          .fontColor('#FF9800')
-          .margin({ top: 40 })
-      }
-
-      // Connection form (demo 模式)
-      if (!this.connected && !this.showLevelSelect && !this.initiatingCall) {
-        Column({ space: 8 }) {
-          TextInput({ text: this.url, placeholder: 'Server URL (wss://...)' })
-            .width('90%')
-            .onChange((value: string) => { this.url = value; })
-
-          TextInput({ text: this.token, placeholder: 'Access Token' })
-            .width('90%')
-            .type(InputType.Normal)
-            .onChange((value: string) => { this.token = value; })
-
-          Button(this.connecting ? 'Connecting...' : 'Connect')
-            .width('60%')
-            .enabled(!this.connecting)
-            .onClick(() => { this.handleConnect(); })
-        }
-      }
-
-      // Video area ─── 画中画 (PiP)
-      if (this.connected) {
-        // 统一的视频容器：Stack 叠加远程和本地画面
-        // 布局策略：远程在主画面时渲染在最底层(第一个子元素)，
-        //          远程在 PiP 时渲染在最顶层(最后一个子元素)，
-        //          本地始终在中间层，通过 if/else 控制远程位置实现置顶。
+    if (this.connected) {
+      // ─── 全屏视频通话界面 ─────────────────────────────────────
+      Stack() {
+        // ═══ 视频层 (画中画) ═══
         Stack() {
           // ── 远程 = 主画面时，渲染在最底层 ──
           if (this.pipMainIsRemote) {
@@ -390,7 +314,6 @@ struct RoomPage {
                     this.dragBaseY = this.pipSmallY;
                   })
                   .onActionUpdate((event: GestureEvent) => {
-                    // 仅当本地是 PiP 小窗时才响应拖拽
                     if (!this.pipMainIsRemote) return;
                     let nx: number = this.dragBaseX + event.offsetX;
                     let ny: number = this.dragBaseY + event.offsetY;
@@ -436,7 +359,6 @@ struct RoomPage {
                       this.dragBaseY = this.pipSmallY;
                     })
                     .onActionUpdate((event: GestureEvent) => {
-                      // 仅当远程是 PiP 小窗时才响应拖拽
                       if (this.pipMainIsRemote) return;
                       let nx: number = this.dragBaseX + event.offsetX;
                       let ny: number = this.dragBaseY + event.offsetY;
@@ -466,13 +388,11 @@ struct RoomPage {
           // ── 摄像头未就绪的占位 ──
           if (this.cameraResolution.length === 0) {
             if (this.pipMainIsRemote) {
-              // 本地是小窗，在小窗位置显示占位
               Text('摄像头')
                 .fontSize(10)
                 .fontColor('#888888')
                 .position({ x: this.pipSmallX + 42, y: this.pipSmallY + 76 })
             } else {
-              // 本地是主画面，在中央显示占位
               Column() {
                 Text('摄像头预览')
                   .fontColor('#888888')
@@ -484,77 +404,200 @@ struct RoomPage {
             }
           }
         }
-        .width('95%')
-        .height(400)
-        .backgroundColor('#1A1A1A')
-        .borderRadius(12)
-        .margin({ top: 4 })
-
-        // ── 摄像头分辨率和提示 ──
-        if (this.cameraResolution.length > 0) {
-          Text(`📷 ${this.cameraResolution}  |  ${this.cameraFacingFront ? '前摄' : '后摄'}`)
-            .fontSize(11)
-            .fontColor('#888888')
-            .margin({ top: 2 })
-        }
-
-        // Controls
-        Row({ space: 10 }) {
-          // 静音按钮：红色表示已静音，绿色表示正常
-          Button(this.micEnabled ? '麦克风' : '已静音')
-            .fontSize(13)
-            .fontColor(Color.White)
-            .backgroundColor(this.micEnabled ? '#4CAF50' : '#F44336')
-            .borderRadius(20)
-            .height(40)
-            .onClick(() => { this.toggleMic(); })
-
-          // 摄像头按钮：红色表示已关闭，绿色表示正常
-          Button(this.camEnabled ? '摄像头' : '摄像头已关')
-            .fontSize(13)
-            .fontColor(Color.White)
-            .backgroundColor(this.camEnabled ? '#4CAF50' : '#F44336')
-            .borderRadius(20)
-            .height(40)
-            .onClick(() => { this.toggleCam(); })
-
-          // 切换前后摄像头按钮
-          Button(this.cameraFacingFront ? '前摄' : '后摄')
-            .fontSize(13)
-            .fontColor(Color.White)
-            .backgroundColor('#2196F3')
-            .borderRadius(20)
-            .height(40)
-            .onClick(() => { this.toggleCameraFacing(); })
-
-          // 挂断按钮
-          Button('挂断')
-            .fontSize(13)
-            .fontColor(Color.White)
-            .backgroundColor('#F44336')
-            .borderRadius(20)
-            .height(40)
-            .onClick(() => { this.handleHangup(); })
-        }
-        .margin({ top: 12 })
         .width('100%')
-        .justifyContent(FlexAlign.Center)
+        .height('100%')
+        .onClick(() => {
+          // 单击视频区域切换浮动控制层
+          this.onVideoTap();
+        })
 
-        // Participants
-        if (this.remoteParticipants.length > 0) {
-          Text('Participants:')
-            .fontSize(14)
-            .margin({ top: 8 })
-          ForEach(this.remoteParticipants, (identity: string) => {
-            Text(`  - ${identity}`)
-              .fontSize(12)
+        // ═══ 浮动控制层 (触摸时显示，5s 无操作自动隐藏) ═══
+        if (this.overlayVisible) {
+          Column() {
+            // ── 顶部信息栏 ──
+            Row() {
+              Column() {
+                Text(this.isInitiateMode ? 'RRT 快反通话' : 'LiveKit OHOS')
+                  .fontSize(18)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(Color.White)
+
+                Text(this.statusText)
+                  .fontSize(11)
+                  .fontColor('#BBBBBB')
+
+                if (this.cameraResolution.length > 0) {
+                  Text(`${this.cameraFacingFront ? '前摄' : '后摄'} | ${this.cameraResolution}`)
+                    .fontSize(10)
+                    .fontColor('#999999')
+                    .margin({ top: 2 })
+                }
+              }
+              .alignItems(HorizontalAlign.Start)
+
+              Blank()
+
+              Text(this.formatCallTime())
+                .fontSize(16)
+                .fontColor(Color.White)
+            }
+            .width('100%')
+            .padding({ left: 20, right: 20, top: 44, bottom: 12 })
+            .backgroundColor('rgba(0,0,0,0.45)')
+
+            Blank()
+
+            // ── 底部功能按钮 ──
+            Row({ space: 24 }) {
+              // 静音按钮
+              Button() {
+                Text(this.micEnabled ? '麦克风' : '已静音')
+                  .fontSize(11)
+                  .fontColor(Color.White)
+              }
+              .width(56)
+              .height(56)
+              .borderRadius(28)
+              .backgroundColor(this.micEnabled ? 'rgba(255,255,255,0.2)' : '#F44336')
+              .onClick(() => {
+                this.toggleMic();
+                this.resetOverlayTimer();
+              })
+
+              // 摄像头按钮
+              Button() {
+                Text(this.camEnabled ? '摄像头' : '已关闭')
+                  .fontSize(11)
+                  .fontColor(Color.White)
+              }
+              .width(56)
+              .height(56)
+              .borderRadius(28)
+              .backgroundColor(this.camEnabled ? 'rgba(255,255,255,0.2)' : '#F44336')
+              .onClick(() => {
+                this.toggleCam();
+                this.resetOverlayTimer();
+              })
+
+              // 切换摄像头
+              Button() {
+                Text('翻转')
+                  .fontSize(11)
+                  .fontColor(Color.White)
+              }
+              .width(56)
+              .height(56)
+              .borderRadius(28)
+              .backgroundColor('rgba(255,255,255,0.2)')
+              .onClick(() => {
+                this.toggleCameraFacing();
+                this.resetOverlayTimer();
+              })
+
+              // 挂断按钮
+              Button() {
+                Text('挂断')
+                  .fontSize(13)
+                  .fontColor(Color.White)
+              }
+              .width(64)
+              .height(64)
+              .borderRadius(32)
+              .backgroundColor('#F44336')
+              .onClick(() => { this.handleHangup(); })
+            }
+            .width('100%')
+            .padding({ left: 16, right: 16, bottom: 36, top: 16 })
+            .backgroundColor('rgba(0,0,0,0.45)')
+            .justifyContent(FlexAlign.SpaceEvenly)
+          }
+          .width('100%')
+          .height('100%')
+          .onClick(() => {
+            // 点击控制层空白区域隐藏
+            this.hideOverlay();
           })
         }
       }
+      .width('100%')
+      .height('100%')
+      .backgroundColor('#000000')
+    } else {
+      // ─── 非通话界面 ───────────────────────────────────────────
+      Column({ space: 12 }) {
+        Text(this.isInitiateMode ? 'RRT 快反通话' : 'LiveKit OHOS Demo')
+          .fontSize(24)
+          .fontWeight(FontWeight.Bold)
+          .margin({ top: 20 })
+
+        Text(this.statusText)
+          .fontSize(14)
+          .fontColor('#AA0000')
+
+        if (this.isInitiateMode && this.currentCallId.length > 0) {
+          Text(`呼叫ID: ${this.currentCallId}`)
+            .fontSize(11)
+            .fontColor('#888888')
+        }
+
+        if (this.showLevelSelect) {
+          Column({ space: 12 }) {
+            Text(this.statusText)
+              .fontSize(18)
+              .fontWeight(FontWeight.Medium)
+              .margin({ top: 16, bottom: 16 })
+
+            ForEach(this.levels, (level: RrtLevel) => {
+              Button(level.levelName)
+                .fontSize(18)
+                .width('80%')
+                .height(52)
+                .margin({ top: 6, bottom: 6 })
+                .onClick(() => { this.onLevelSelected(level.levelCode); })
+            })
+
+            Button('取消')
+              .fontSize(16)
+              .width('60%')
+              .height(44)
+              .backgroundColor('#999999')
+              .margin({ top: 20 })
+              .onClick(() => { router.back(); })
+          }
+          .width('100%')
+          .padding(20)
+          .alignItems(HorizontalAlign.Center)
+        }
+
+        if (this.initiatingCall && !this.showLevelSelect) {
+          Text(this.statusText)
+            .fontSize(18)
+            .fontColor('#FF9800')
+            .margin({ top: 40 })
+        }
+
+        if (!this.showLevelSelect && !this.initiatingCall) {
+          Column({ space: 8 }) {
+            TextInput({ text: this.url, placeholder: 'Server URL (wss://...)' })
+              .width('90%')
+              .onChange((value: string) => { this.url = value; })
+
+            TextInput({ text: this.token, placeholder: 'Access Token' })
+              .width('90%')
+              .type(InputType.Normal)
+              .onChange((value: string) => { this.token = value; })
+
+            Button(this.connecting ? 'Connecting...' : 'Connect')
+              .width('60%')
+              .enabled(!this.connecting)
+              .onClick(() => { this.handleConnect(); })
+          }
+        }
+      }
+      .width('100%')
+      .height('100%')
+      .padding(16)
     }
-    .width('100%')
-    .height('100%')
-    .padding(16)
   }
 
   /**
@@ -651,6 +694,9 @@ struct RoomPage {
       //    The XComponent needs time to load before the camera can use its surface.
       this.connected = true;
       this.statusText = 'Starting camera...';
+      // 启动 overlay 自动隐藏计时和通话时长计时
+      this.showOverlayAndResetTimer();
+      this.startCallTimer();
       hilog.info(0x0000, TAG, 'UI connected=true, XComponent loading...');
 
       // 5. Delay to let the UI framework render the XComponent.
@@ -982,6 +1028,8 @@ struct RoomPage {
         hilog.warn(0x0000, TAG, 'Disconnected: %{public}s, resetting state', reason);
         // Reset state so UI reflects reality
         this.connected = false;
+        this.stopCallTimer();
+        this.hideOverlay();
         this.remoteParticipants = [];
         this.hasRemoteVideo = false;
         this.renderingVideoTrackSid = '';
@@ -1101,6 +1149,67 @@ struct RoomPage {
       'PiP swapped: main=%{public}s', this.pipMainIsRemote ? 'remote' : 'local');
   }
 
+  // ─── Overlay 控制 ────────────────────────────────────────────
+
+  /** 显示浮动控制层并重置 5 秒自动隐藏计时器 */
+  private showOverlayAndResetTimer(): void {
+    this.overlayVisible = true;
+    this.resetOverlayTimer();
+  }
+
+  /** 隐藏浮动控制层并清除计时器 */
+  private hideOverlay(): void {
+    this.overlayVisible = false;
+    if (this.overlayHideTimer) {
+      clearTimeout(this.overlayHideTimer);
+      this.overlayHideTimer = 0;
+    }
+  }
+
+  /** 重置 5 秒自动隐藏计时器 (不改变可见性) */
+  private resetOverlayTimer(): void {
+    if (this.overlayHideTimer) {
+      clearTimeout(this.overlayHideTimer);
+    }
+    this.overlayHideTimer = setTimeout(() => {
+      this.overlayVisible = false;
+      this.overlayHideTimer = 0;
+    }, 5000);
+  }
+
+  /** 视频区域单次点击：切换 overlay 可见性 */
+  private onVideoTap(): void {
+    if (this.overlayVisible) {
+      this.hideOverlay();
+    } else {
+      this.showOverlayAndResetTimer();
+    }
+  }
+
+  /** 格式化通话时长 (MM:SS) */
+  private formatCallTime(): string {
+    const mins: number = Math.floor(this.callSeconds / 60);
+    const secs: number = this.callSeconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+
+  /** 启动通话计时器 */
+  private startCallTimer(): void {
+    this.stopCallTimer();
+    this.callSeconds = 0;
+    this.timerInterval = setInterval(() => {
+      this.callSeconds++;
+    }, 1000);
+  }
+
+  /** 停止通话计时器 */
+  private stopCallTimer(): void {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = 0;
+    }
+  }
+
   /**
    * 挂断通话（快反模式）
    */
@@ -1148,6 +1257,8 @@ struct RoomPage {
     if (this.audioStopDebounceTimer) { clearTimeout(this.audioStopDebounceTimer); this.audioStopDebounceTimer = 0; }
     this.cameraResolution = '';
     this.localPreviewSurfaceId = '';
+    this.stopCallTimer();
+    this.hideOverlay();
     this.statusText = 'Disconnected';
     hilog.info(0x0000, TAG, 'Disconnected and capture stopped');
   }
