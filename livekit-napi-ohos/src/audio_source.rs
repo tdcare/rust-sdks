@@ -30,7 +30,7 @@ static AUDIO_FRAME_COUNT: AtomicU64 = AtomicU64::new(0);
 /// `100ms` matches the value commonly used by the LiveKit FFI bindings; it
 /// allows the caller to push arbitrarily-sized PCM frames without having to
 /// align them to 10 ms boundaries.
-const DEFAULT_QUEUE_SIZE_MS: u32 = 100;
+const DEFAULT_QUEUE_SIZE_MS: u32 = 20;
 
 /// Audio source for capturing and sending interleaved 16-bit PCM audio to a
 /// LiveKit room.

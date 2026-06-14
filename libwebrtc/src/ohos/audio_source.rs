@@ -115,6 +115,7 @@ impl NativeAudioSource {
     }
 
     pub(crate) fn bind_rtp_pipeline(&self, pipeline: RtpSendPipeline) {
+        log::error!("[NativeAudioSource] bind_rtp_pipeline: audio RTP pipeline BOUND, ssrc={}", pipeline.ssrc());
         *self.rtp_pipeline.lock() = Some(pipeline);
     }
 
@@ -150,18 +151,33 @@ impl NativeAudioSource {
             }
         };
         let mut encoder = opus::Encoder::new(sample_rate, channels, opus::Application::Audio)
-            .map_err(|e| RtcError {
-                error_type: RtcErrorType::Internal,
-                message: format!("failed to create opus encoder: {e}"),
+            .map_err(|e| {
+                log::error!("[NativeAudioSource] Opus encoder creation FAILED: {}", e);
+                RtcError {
+                    error_type: RtcErrorType::Internal,
+                    message: format!("failed to create opus encoder: {e}"),
+                }
             })?;
         encoder.set_bitrate(opus::Bitrate::Bits(64000)).ok();
+        encoder.set_inband_fec(true).ok();
         state.encoder = Some(encoder);
-        log::info!("[NativeAudioSource] Opus encoder initialised: rate={} ch={}", sample_rate, num_channels);
+        log::error!("[NativeAudioSource] Opus encoder initialised: rate={} ch={}", sample_rate, num_channels);
         Ok(())
     }
 
     /// Drain buffered PCM in 20 ms chunks, encode with Opus, and send via RTP.
     fn encode_and_send(&self) {
+        // Diagnostic: confirm encode_and_send entry
+        {
+            static ENCODE_ENTRY_COUNT: AtomicU64 = AtomicU64::new(0);
+            let n = ENCODE_ENTRY_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+            let buf_len = self.encoder_state.lock().buffer.len();
+            if n == 1 || n % 100 == 0 {
+                log::error!("[NativeAudioSource] encode_and_send ENTRY #{}: buffer_len={} pcm_samples",
+                    n, buf_len);
+            }
+        }
+
         let frame_samples = ((self.sample_rate * OPUS_FRAME_MS) / 1000) as usize * self.num_channels as usize;
 
         // Phase 1: encode all buffered PCM while holding encoder_state lock.
@@ -171,6 +187,7 @@ impl NativeAudioSource {
             let mut state = self.encoder_state.lock();
 
             if Self::ensure_encoder(&mut state, self.sample_rate, self.num_channels).is_err() {
+                log::error!("[NativeAudioSource] encode_and_send: ensure_encoder FAILED, returning");
                 return;
             }
 
@@ -237,7 +254,19 @@ impl NativeAudioSource {
         let mut pipeline = self.rtp_pipeline.lock();
         let pipeline = match pipeline.as_mut() {
             Some(p) => p,
-            None => return,
+            None => {
+                // Pipeline not yet bound — encoded audio is being discarded.
+                // Log periodically so we can diagnose delayed binding.
+                static DISCARD_COUNT: AtomicU64 = AtomicU64::new(0);
+                let n = DISCARD_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+                if n == 1 || n % 50 == 0 {
+                    log::error!(
+                        "[NativeAudioSource] audio pipeline NOT bound! discarding {} encoded frames (total discards={})",
+                        encoded_frames.len(), n
+                    );
+                }
+                return;
+            }
         };
         for (ts, offset) in &encoded_frames {
             let next_offset = encoded_frames
@@ -259,6 +288,16 @@ impl NativeAudioSource {
     }
 
     pub async fn capture_frame(&self, frame: &AudioFrame<'_>) -> Result<(), RtcError> {
+        // Diagnostic: confirm capture_frame is being called (ERROR level to ensure hilog visibility)
+        {
+            static CAPTURE_COUNT: AtomicU64 = AtomicU64::new(0);
+            let n = CAPTURE_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+            if n == 1 || n % 100 == 0 {
+                log::error!("[NativeAudioSource] capture_frame ENTRY #{}: PCM samples={} rate={} ch={}",
+                    n, frame.data.len(), frame.sample_rate, frame.num_channels);
+            }
+        }
+
         if self.sample_rate != frame.sample_rate || self.num_channels != frame.num_channels {
             return Err(RtcError {
                 error_type: RtcErrorType::InvalidState,
