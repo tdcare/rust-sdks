@@ -8,6 +8,8 @@ export class AudioRenderService {
   private renderer: audio.AudioRenderer | null = null;
   private stream: LkAudioStream | null = null;
   private running: boolean = false;
+  private speakerOn: boolean = true; // 默认扬声器模式
+  private switchingDevice: boolean = false; // 防止并发切换
 
   async start(track: LkRemoteAudioTrack): Promise<void> {
     if (this.running) return;
@@ -27,7 +29,9 @@ export class AudioRenderService {
         },
         rendererInfo: {
           content: audio.ContentType.CONTENT_TYPE_SPEECH,
-          usage: audio.StreamUsage.STREAM_USAGE_VOICE_COMMUNICATION,
+          usage: this.speakerOn ?
+            audio.StreamUsage.STREAM_USAGE_MEDIA :
+            audio.StreamUsage.STREAM_USAGE_VOICE_COMMUNICATION,
           rendererFlags: 0
         }
       };
@@ -101,5 +105,78 @@ export class AudioRenderService {
       this.renderer = null;
     }
     hilog.info(0x0000, TAG, 'Audio renderer stopped');
+  }
+
+  /** 查询当前是否是扬声器模式 */
+  isSpeakerOn(): boolean {
+    return this.speakerOn;
+  }
+
+  /**
+   * 切换扬声器 / 听筒。
+   * 通过停止当前 renderer，用不同 StreamUsage 重建来实现设备路由切换：
+   *  - 扬声器: STREAM_USAGE_MEDIA
+   *  - 听筒:   STREAM_USAGE_VOICE_COMMUNICATION
+   */
+  async switchOutputDevice(speakerOn: boolean): Promise<void> {
+    if (this.switchingDevice || this.speakerOn === speakerOn) return;
+    if (!this.running || !this.renderer) {
+      // 尚未启动，仅更新标志位，下次 start 时生效
+      this.speakerOn = speakerOn;
+      return;
+    }
+
+    this.switchingDevice = true;
+    hilog.info(0x0000, TAG, 'Switching output to %{public}s', speakerOn ? 'speaker' : 'earpiece');
+
+    try {
+      // 1. 暂停 writeLoop（让当前 writeLoop 自然退出）
+      this.running = false;
+
+      // 2. 等待一小段时间确保 writeLoop 退出当前迭代
+      await new Promise<void>((r) => setTimeout(r, 100));
+
+      // 3. 停止并释放旧 renderer
+      try {
+        await this.renderer.stop();
+        await this.renderer.release();
+      } catch (e) {
+        hilog.warn(0x0000, TAG, 'Old renderer release error: %{public}s', JSON.stringify(e));
+      }
+      this.renderer = null;
+
+      // 4. 更新标志位
+      this.speakerOn = speakerOn;
+
+      // 5. 用新的 StreamUsage 创建 renderer
+      const rendererOptions: audio.AudioRendererOptions = {
+        streamInfo: {
+          samplingRate: audio.AudioSamplingRate.SAMPLE_RATE_48000,
+          channels: audio.AudioChannel.CHANNEL_1,
+          sampleFormat: audio.AudioSampleFormat.SAMPLE_FORMAT_S16LE,
+          encodingType: audio.AudioEncodingType.ENCODING_TYPE_RAW
+        },
+        rendererInfo: {
+          content: audio.ContentType.CONTENT_TYPE_SPEECH,
+          usage: speakerOn ?
+            audio.StreamUsage.STREAM_USAGE_MEDIA :
+            audio.StreamUsage.STREAM_USAGE_VOICE_COMMUNICATION,
+          rendererFlags: 0
+        }
+      };
+      this.renderer = await audio.createAudioRenderer(rendererOptions);
+      await this.renderer.start();
+
+      // 6. 恢复并启动新的 writeLoop
+      this.running = true;
+      this.writeLoop();
+
+      hilog.info(0x0000, TAG, 'Output switched to %{public}s OK', speakerOn ? 'speaker' : 'earpiece');
+    } catch (err) {
+      this.running = false;
+      hilog.error(0x0000, TAG, 'Device switch failed: %{public}s', JSON.stringify(err));
+    } finally {
+      this.switchingDevice = false;
+    }
   }
 }

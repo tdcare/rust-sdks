@@ -59,6 +59,7 @@ struct RoomPage {
   @State private connecting: boolean = false;
   @State private micEnabled: boolean = true;
   @State private camEnabled: boolean = true;
+  @State private speakerEnabled: boolean = true; // true=扬声器, false=听筒
   @State private statusText: string = 'Disconnected';
   @State private remoteParticipants: string[] = [];
   @State private hasRemoteVideo: boolean = false;
@@ -416,6 +417,22 @@ struct RoomPage {
           Column() {
             // ── 顶部信息栏 ──
             Row() {
+              // 听筒/扬声器 切换 (左上角)
+              Button() {
+                Text(this.speakerEnabled ? '扬声器' : '听筒')
+                  .fontSize(11)
+                  .fontColor(Color.White)
+              }
+              .width(56)
+              .height(28)
+              .borderRadius(14)
+              .backgroundColor('rgba(255,255,255,0.2)')
+              .margin({ right: 8 })
+              .onClick(() => {
+                this.toggleSpeaker();
+                this.resetOverlayTimer();
+              })
+
               Column() {
                 Text(this.isInitiateMode ? 'RRT 快反通话' : 'LiveKit OHOS')
                   .fontSize(18)
@@ -434,8 +451,7 @@ struct RoomPage {
                 }
               }
               .alignItems(HorizontalAlign.Start)
-
-              Blank()
+              .layoutWeight(1)
 
               Text(this.formatCallTime())
                 .fontSize(16)
@@ -1068,6 +1084,15 @@ struct RoomPage {
     this.micEnabled = !this.micEnabled;
     hilog.info(0x0000, TAG, 'Mic %{public}s', this.micEnabled ? 'enabled' : 'muted');
     this.localAudioTrack?.setMuted(!this.micEnabled);
+  }
+
+  /**
+   * 切换扬声器 / 听筒
+   */
+  private toggleSpeaker(): void {
+    this.speakerEnabled = !this.speakerEnabled;
+    hilog.info(0x0000, TAG, 'Speaker %{public}s', this.speakerEnabled ? 'on (扬声器)' : 'off→听筒');
+    this.audioRender.switchOutputDevice(this.speakerEnabled);
   }
 
   /**
