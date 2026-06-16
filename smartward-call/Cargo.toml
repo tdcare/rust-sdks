@@ -1,0 +1,26 @@
+﻿[package]
+name = "smartward-call"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "SmartWard 呼叫引擎 — 纯 WebRTC P2P/SFU 双模，信令由上层处理"
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[features]
+default = ["native"]
+native = ["p2p-native", "sfu"]
+p2p-native = ["dep:libwebrtc"]
+sfu = ["dep:livekit", "dep:livekit-api"]
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+
+libwebrtc = { workspace = true, optional = true }
+livekit = { workspace = true, optional = true, features = ["rustls-tls-webpki-roots"] }
+livekit-api = { workspace = true, optional = true }

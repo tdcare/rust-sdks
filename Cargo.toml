@@ -12,6 +12,7 @@ members = [
     "livekit-wakeword",
     "livekit-napi-ohos",
     "libwebrtc",
+    "smartward-call",
     "soxr-sys",
     "yuv-sys",
     "imgproc",
@@ -131,3 +132,4 @@ codegen-units = 1
 panic = "abort"
 strip = "symbols"
 debug = false
+
