@@ -7,13 +7,14 @@ description = "SmartWard 呼叫引擎 — 纯 WebRTC P2P/SFU 双模，信令由�
 repository.workspace = true
 
 [lib]
-crate-type = ["cdylib", "staticlib"]
+crate-type = ["rlib", "cdylib", "staticlib"]
 
 [features]
 default = ["native"]
 native = ["p2p-native", "sfu"]
 p2p-native = ["dep:libwebrtc"]
 sfu = ["dep:livekit", "dep:livekit-api"]
+ffi = []
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

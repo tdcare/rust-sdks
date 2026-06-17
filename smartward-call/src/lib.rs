@@ -66,6 +66,8 @@ mod types;
 mod p2p;
 mod sfu;
 mod router;
+#[cfg(feature = "ffi")]
+mod ffi;
 
 pub use types::*;
 pub use router::SessionRouter;

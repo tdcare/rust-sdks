@@ -4446,6 +4446,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
+ "smartward-call",
  "tokio",
 ]
 

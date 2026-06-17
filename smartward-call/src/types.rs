@@ -9,12 +9,38 @@ use serde::{Deserialize, Serialize};
 // ============================================================
 
 /// P2P 连接句柄
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PeerHandle(pub(crate) u64);
 
+impl PeerHandle {
+    /// Get the raw u64 value of this handle.
+    pub fn as_u64(self) -> u64 {
+        self.0
+    }
+}
+
+impl From<u64> for PeerHandle {
+    fn from(v: u64) -> Self {
+        PeerHandle(v)
+    }
+}
+
 /// SFU 会话句柄
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SfuHandle(pub(crate) u64);
+
+impl SfuHandle {
+    /// Get the raw u64 value of this handle.
+    pub fn as_u64(self) -> u64 {
+        self.0
+    }
+}
+
+impl From<u64> for SfuHandle {
+    fn from(v: u64) -> Self {
+        SfuHandle(v)
+    }
+}
 
 // ============================================================
 // SDP 与会话描述
@@ -67,7 +93,7 @@ pub struct IceServer {
 // ============================================================
 
 /// P2P 连接配置
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct P2pConfig {
     /// ICE 服务器列表
     pub ice_servers: Vec<IceServer>,
@@ -86,7 +112,7 @@ impl Default for P2pConfig {
 }
 
 /// SFU 会话配置
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SfuConfig {
     /// LiveKit 房间名
     pub room_name: String,
@@ -100,7 +126,7 @@ pub struct SfuConfig {
 // 媒体
 // ============================================================
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum MediaKind {
     Audio,
     Video,
@@ -110,7 +136,7 @@ pub enum MediaKind {
 // 连接状态
 // ============================================================
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum P2pState {
     New,
     Connecting,
@@ -120,7 +146,7 @@ pub enum P2pState {
     Closed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum SfuState {
     Disconnected,
     Connecting,
@@ -168,7 +194,7 @@ pub enum RtcError {
 // ============================================================
 
 /// WebRTC 引擎产生的事件，由上层通过 `poll_events()` 拉取
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum EngineEvent {
     // ---- P2P 事件 ----
 
