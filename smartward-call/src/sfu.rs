@@ -79,7 +79,7 @@ impl SfuManager {
         self.do_connect(handle)
     }
 
-    #[cfg(feature = "sfu")]
+    #[cfg(feature = "call-sfu")]
     fn do_connect(&mut self, handle: SfuHandle) -> Result<(), RtcError> {
         // TODO: 使用 livekit::Room 连接
         // let room = livekit::Room::new();
@@ -89,9 +89,9 @@ impl SfuManager {
         Ok(())
     }
 
-    #[cfg(not(feature = "sfu"))]
+    #[cfg(not(feature = "call-sfu"))]
     fn do_connect(&mut self, handle: SfuHandle) -> Result<(), RtcError> {
-        log::warn!("[SFU] {:?} connect: using stub (enable sfu feature)", handle);
+        log::warn!("[SFU] {:?} connect: using stub (enable call-sfu feature)", handle);
         let session = self.sessions.get_mut(&handle).unwrap();
         session.transition(SfuState::Connected, handle);
         Ok(())
@@ -101,7 +101,7 @@ impl SfuManager {
     pub fn disconnect(&mut self, handle: SfuHandle) {
         if let Some(session) = self.sessions.get_mut(&handle) {
             session.transition(SfuState::Disconnected, handle);
-            #[cfg(feature = "sfu")]
+            #[cfg(feature = "call-sfu")]
             {
                 // TODO: room.disconnect()
             }
