@@ -1,0 +1,25 @@
+[package]
+name = "rtc-sdp"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "RTC SDP in Rust"
+license.workspace = true
+documentation = "https://docs.rs/rtc-sdp"
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+shared = { workspace = true, default-features = false, features = [] }
+
+url = "2.5.0"
+rand.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "bench"
+harness = false

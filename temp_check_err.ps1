@@ -1,0 +1,13 @@
+$env:OHOS_SDK_HOME = "$env:LOCALAPPDATA\OpenHarmony\Sdk\20"
+$env:OHOS_NDK = "$env:OHOS_SDK_HOME\native"
+$env:OHOS_SYSROOT = "$env:OHOS_NDK\sysroot"
+$env:OHOS_LLVM = "$env:OHOS_NDK\llvm\bin"
+$env:CC_aarch64_unknown_linux_ohos = "$env:OHOS_LLVM\clang.exe --target=aarch64-unknown-linux-ohos --sysroot=$env:OHOS_SYSROOT"
+$env:CXX_aarch64_unknown_linux_ohos = "$env:OHOS_LLVM\clang++.exe --target=aarch64-unknown-linux-ohos --sysroot=$env:OHOS_SYSROOT"
+$env:AR_aarch64_unknown_linux_ohos = "$env:OHOS_LLVM\llvm-ar.exe"
+$env:RANLIB_aarch64_unknown_linux_ohos = "$env:OHOS_LLVM\llvm-ranlib.exe"
+$env:CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_LINKER = "$env:OHOS_LLVM\clang.exe"
+$env:CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_RUSTFLAGS = "-C link-arg=-fuse-ld=lld -C link-arg=--target=aarch64-unknown-linux-ohos -C link-arg=--sysroot=$env:OHOS_SYSROOT"
+$env:PATH = "$env:OHOS_LLVM;$env:PATH"
+Set-Location "d:\tdcare\livekit\rust-sdks"
+cargo build -p livekit-napi-ohos --target aarch64-unknown-linux-ohos --release 2>&1 | Select-String "error" | Select-Object -First 20

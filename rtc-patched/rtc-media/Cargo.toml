@@ -1,0 +1,29 @@
+[package]
+name = "rtc-media"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "RTC Media in Rust"
+license.workspace = true
+documentation = "https://docs.rs/rtc-media"
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+shared = { workspace = true, default-features = false, features = [] }
+rtp.workspace = true
+
+byteorder.workspace = true
+bytes.workspace = true
+rand.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+nearly_eq = "0.2"
+
+[[bench]]
+name = "bench"
+harness = false

@@ -1,0 +1,60 @@
+--- a/rtc-mdns/src/proto/mod.rs
++++ b/rtc-mdns/src/proto/mod.rs
+@@ -675,7 +675,7 @@ impl Mdns {
+             let local_ip = if let Some(body) = answer_resource.body
+                 && let Some(a) = body.as_any().downcast_ref::<AResource>()
+             {
+-                let local_ip = Ipv4Addr::from_octets(a.a).into();
++                let local_ip = Ipv4Addr::from(a.a).into();
+                 if local_ip != src.ip() {
+                     warn!(
+                         "mDNS answers with different local ip on AResource {} vs src ip {} on Socket for query {}",
+--- a/rtc-shared/Cargo.toml
++++ b/rtc-shared/Cargo.toml
+@@ -31,7 +31,7 @@ aes = "0.8.4"
+ rand.workspace = true
+ serde.workspace = true
+ 
+-[target.'cfg(not(windows))'.dependencies]
++[target.'cfg(all(not(windows), not(target_env = "ohos")))'.dependencies]
+ nix = "0.26.2"
+ 
+ [target.'cfg(windows)'.dependencies]
+--- a/rtc-shared/src/ifaces/ffi/mod.rs
++++ b/rtc-shared/src/ifaces/ffi/mod.rs
+@@ -3,7 +3,13 @@ mod windows;
+ #[cfg(target_family = "windows")]
+ pub use self::windows::ifaces;
+ 
+-#[cfg(target_family = "unix")]
++#[cfg(all(target_family = "unix", not(target_env = "ohos")))]
+ mod unix;
+-#[cfg(target_family = "unix")]
++#[cfg(all(target_family = "unix", not(target_env = "ohos")))]
+ pub use self::unix::ifaces;
++
++// OpenHarmony stub implementation
++#[cfg(target_env = "ohos")]
++mod ohos;
++#[cfg(target_env = "ohos")]
++pub use self::ohos::ifaces;
+--- /dev/null
++++ b/rtc-shared/src/ifaces/ffi/ohos/mod.rs
+@@ -0,0 +1,17 @@
++//! Network interfaces module - OpenHarmony stub implementation
++//!
++//! OpenHarmony does not support nix crate's getifaddrs.
++//! This module provides a stub implementation.
++//! In sans-I/O architecture, network addresses are provided by the application layer.
++
++use crate::ifaces::Interface;
++use std::io::Error;
++
++/// Query the local system for all interface addresses.
++///
++/// On OpenHarmony, this returns an empty list.
++/// The caller should provide network addresses manually via the sans-I/O API.
++pub fn ifaces() -> Result<Vec<Interface>, Error> {
++    // OpenHarmony stub: return empty list
++    Ok(Vec::new())
++}

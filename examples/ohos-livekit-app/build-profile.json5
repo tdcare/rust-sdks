@@ -1,0 +1,49 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "OpenHarmony",
+        "material": {
+          "certpath": "C:\\Users\\tzw\\.ohos\\config\\default_ohos-livekit-app_4CEbev3Fcu9JBjaQ9xQ-8zhmPYTnhZTMSV-ImlBUf_o=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BE2FBC89EBD93F0327181531707BBCC58BB325F7387766C21CE92181E965F117F5FB7E3D709E1B2",
+          "profile": "C:\\Users\\tzw\\.ohos\\config\\default_ohos-livekit-app_4CEbev3Fcu9JBjaQ9xQ-8zhmPYTnhZTMSV-ImlBUf_o=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\tzw\\.ohos\\config\\default_ohos-livekit-app_4CEbev3Fcu9JBjaQ9xQ-8zhmPYTnhZTMSV-ImlBUf_o=.p12",
+          "storePassword": "0000001BBCFA5D2831C1C7202CCFFF83A33FC0CB8642B6B753E06A212EE9A54B52CB7303673B19CADCD455"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "compileSdkVersion": 12,
+        "compatibleSdkVersion": 12,
+        "runtimeOS": "OpenHarmony",
+        "signingConfig": "default",
+        "buildOption": {
+          "strictMode": {
+            "useNormalizedOHMUrl": true
+          }
+        },
+        "targetSdkVersion":12
+      }
+    ]
+  },
+
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}
