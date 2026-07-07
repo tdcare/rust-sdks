@@ -79,6 +79,8 @@ struct EncoderState {
     render_buffer: VecDeque<i16>,
     /// Accumulated 10ms AEC output before reassembly into 20ms Opus frames.
     aec_output: Vec<i16>,
+    /// Stored AEC config for periodic filter reset.
+    aec_config: Option<sonora::Config>,
 }
 
 #[derive(Clone)]
@@ -119,6 +121,7 @@ impl NativeAudioSource {
                 apm: None,
                 render_buffer: VecDeque::with_capacity(9600),
                 aec_output: Vec::with_capacity(960),
+                aec_config: None,
             })),
             rtp_pipeline: Arc::new(Mutex::new(None)),
         }
@@ -404,14 +407,16 @@ impl NativeAudioSource {
             ..Default::default()
         };
         let mut apm = sonora::AudioProcessing::builder()
-            .config(config)
+            .config(config.clone())
             .capture_config(sonora::StreamConfig::new(self.sample_rate, self.num_channels as u16))
             .render_config(sonora::StreamConfig::new(self.sample_rate, 1u16)) // render is mono
             .build();
-        // Let AEC3 auto-estimate render-to-capture delay (0=auto-detect)
-        // Fixed delay drifts over time due to audio clock skew, causing AEC divergence
-        let _ = apm.set_stream_delay_ms(0);
+        // Light delay hint (10ms) for faster initial convergence; AEC3 will auto-track drift
+        let _ = apm.set_stream_delay_ms(10);
+        // Attenuate overly sensitive mic (0.5x = -6dB) to prevent echo overload
+        apm.set_capture_pre_gain(0.5);
         state.apm = Some(apm);
+        state.aec_config = Some(config);
         log::info!("[NativeAudioSource] AEC initialized: sonora AEC3 + NS + AGC, {}Hz, {}ch",
             self.sample_rate, self.num_channels);
     }
