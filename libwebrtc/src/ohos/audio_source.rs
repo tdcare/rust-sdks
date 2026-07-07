@@ -362,7 +362,7 @@ impl NativeAudioSource {
                 {
                     static AEC_FRAME_COUNT: AtomicU64 = AtomicU64::new(0);
                     let n = AEC_FRAME_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-                    if n % 50 == 0 {
+                    if n % 200 == 0 {
                         let ref_available = !state.render_buffer.is_empty();
                         let in_max = frame.data.iter().map(|s| s.abs()).max().unwrap_or(0);
                         let out_max = processed.iter().map(|s| s.abs()).max().unwrap_or(0);
@@ -403,11 +403,13 @@ impl NativeAudioSource {
             gain_controller2: Some(sonora::config::GainController2::default()),
             ..Default::default()
         };
-        let apm = sonora::AudioProcessing::builder()
+        let mut apm = sonora::AudioProcessing::builder()
             .config(config)
             .capture_config(sonora::StreamConfig::new(self.sample_rate, self.num_channels as u16))
             .render_config(sonora::StreamConfig::new(self.sample_rate, 1u16)) // render is mono
             .build();
+        // Set estimated render-to-capture delay (OHOS hardware ~50ms)
+        let _ = apm.set_stream_delay_ms(50);
         state.apm = Some(apm);
         log::info!("[NativeAudioSource] AEC initialized: sonora AEC3 + NS + AGC, {}Hz, {}ch",
             self.sample_rate, self.num_channels);
@@ -421,7 +423,7 @@ impl NativeAudioSource {
         // Diagnostic: log first frame and every 100th
         static REF_COUNT: AtomicU64 = AtomicU64::new(0);
         let n = REF_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-        if n == 1 || n % 100 == 0 {
+        if n == 1 || n % 500 == 0 {
             log::info!("[NativeAudioSource] push_reference_frame #{}: {} samples, head=[{},{}], total_buf={}",
                 n, data.len(), data.first().unwrap_or(&0), data.get(1).unwrap_or(&0), state.render_buffer.len());
         }
