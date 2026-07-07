@@ -408,8 +408,9 @@ impl NativeAudioSource {
             .capture_config(sonora::StreamConfig::new(self.sample_rate, self.num_channels as u16))
             .render_config(sonora::StreamConfig::new(self.sample_rate, 1u16)) // render is mono
             .build();
-        // Set estimated render-to-capture delay (OHOS hardware ~50ms)
-        let _ = apm.set_stream_delay_ms(50);
+        // Let AEC3 auto-estimate render-to-capture delay (0=auto-detect)
+        // Fixed delay drifts over time due to audio clock skew, causing AEC divergence
+        let _ = apm.set_stream_delay_ms(0);
         state.apm = Some(apm);
         log::info!("[NativeAudioSource] AEC initialized: sonora AEC3 + NS + AGC, {}Hz, {}ch",
             self.sample_rate, self.num_channels);
