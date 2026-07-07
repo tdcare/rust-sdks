@@ -14,9 +14,6 @@
 
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::LazyLock;
-
-use tokio::runtime::Runtime;
 
 pub use tokio::net::TcpStream;
 pub use tokio::time::interval;
@@ -29,15 +26,14 @@ pub use tokio_stream::Stream;
 pub type JoinHandle<T> = TokioJoinHandle<T>;
 pub type Interval = tokio::time::Interval;
 
-/// Global fallback runtime used when `spawn` is called from a thread that has
-/// no active tokio runtime context (e.g. the JS thread in NAPI environments).
-static FALLBACK_RT: LazyLock<Runtime> = LazyLock::new(|| {
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .worker_threads(1)
-        .build()
-        .expect("Create fallback tokio runtime failed")
-});
+/// Stored runtime handle for spawn(). Set this once during initialization.
+static RUNTIME: std::sync::OnceLock<tokio::runtime::Handle> = std::sync::OnceLock::new();
+
+/// Store a runtime handle that spawn() will fall back to when no runtime
+/// context is active on the calling thread.
+pub fn set_runtime(handle: tokio::runtime::Handle) {
+    let _ = RUNTIME.set(handle);
+}
 
 #[derive(Debug)]
 pub struct TokioJoinHandle<T> {
@@ -49,16 +45,21 @@ where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    match tokio::runtime::Handle::try_current() {
-        Ok(handle) => {
-            eprintln!("[LKR] spawn using current runtime handle");
-            TokioJoinHandle { handle: handle.spawn(future) }
+    // First, try to get the current runtime handle. If that fails,
+    // fall back to the stored runtime. Panic if neither is available.
+    let handle = {
+        let h = tokio::runtime::Handle::try_current()
+            .ok()
+            .or_else(|| RUNTIME.get().cloned());
+        match h {
+            Some(handle) => handle.spawn(future),
+            None => panic!(
+                "livekit_runtime::spawn: no tokio runtime available. \
+                 Call set_runtime() first or enter a runtime context."
+            ),
         }
-        Err(_) => {
-            eprintln!("[LKR] spawn using FALLBACK_RT");
-            TokioJoinHandle { handle: FALLBACK_RT.spawn(future) }
-        }
-    }
+    };
+    TokioJoinHandle { handle }
 }
 
 impl<T> Future for TokioJoinHandle<T> {
@@ -69,10 +70,11 @@ impl<T> Future for TokioJoinHandle<T> {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         let this = &mut *self;
-        let mut handle = &mut this.handle;
-        match Pin::new(&mut handle).poll(cx) {
-            std::task::Poll::Ready(value) => {
-                std::task::Poll::Ready(value.expect("Tasks should not panic"))
+        match Pin::new(&mut this.handle).poll(cx) {
+            std::task::Poll::Ready(Ok(v)) => std::task::Poll::Ready(v),
+            std::task::Poll::Ready(Err(e)) => {
+                // Task panicked — resume the panic on the awaiting thread
+                std::panic::resume_unwind(e.into_panic())
             }
             std::task::Poll::Pending => std::task::Poll::Pending,
         }

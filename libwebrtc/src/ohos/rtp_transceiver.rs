@@ -68,6 +68,10 @@ impl RtpTransceiver {
         *self.direction.lock()
     }
 
+    pub fn set_direction(&self, dir: RtpTransceiverDirection) {
+        *self.direction.lock() = dir;
+    }
+
     pub fn sender(&self) -> RtpSender {
         RtpSender { handle: self.sender.clone() }
     }

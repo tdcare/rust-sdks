@@ -390,9 +390,12 @@ impl P2pManager {
             .as_ref()
             .ok_or_else(|| RtcError::Internal("no peer connection".into()))?;
 
-        // 1. 设置远端 Offer
-        let lw_offer = to_lw_sdp(offer)?;
-        block_on(pc.set_remote_description(lw_offer)).map_err(map_err)?;
+        // 1. 设置远端 Offer（如果尚未设置，允许 ArkTS 层提前调用 setRemoteSdp）
+        let sig_state = pc.signaling_state();
+        if !matches!(sig_state, libwebrtc::peer_connection::SignalingState::HaveRemoteOffer) {
+            let lw_offer = to_lw_sdp(offer)?;
+            block_on(pc.set_remote_description(lw_offer)).map_err(map_err)?;
+        }
 
         // 2. 创建 Answer
         let answer = block_on(pc.create_answer(AnswerOptions::default())).map_err(map_err)?;
@@ -504,7 +507,16 @@ impl P2pManager {
         use libwebrtc::peer_connection_factory::native::PeerConnectionFactoryExt;
 
         // 创建音频源 (48kHz, mono, 20ms frames)
-        let source = NativeAudioSource::new(AudioSourceOptions::default(), 48000, 1, 20);
+        // 启用 AEC（回声消除）+ NS（噪声抑制）+ AGC（自动增益）
+        // 防止设备靠近时扬声器声音被麦克风重新采集导致啸叫
+        let source = NativeAudioSource::new(
+            AudioSourceOptions {
+                echo_cancellation: true,
+                noise_suppression: true,
+                auto_gain_control: true,
+            },
+            48000, 1, 20,
+        );
 
         // 创建 audio track
         let track = self.factory.create_audio_track("p2p_audio", source.clone());

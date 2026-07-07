@@ -56,6 +56,10 @@ impl RtpTransceiver {
         self.handle.direction()
     }
 
+    pub fn set_direction(&self, dir: RtpTransceiverDirection) {
+        self.handle.set_direction(dir)
+    }
+
     pub fn sender(&self) -> RtpSender {
         self.handle.sender()
     }

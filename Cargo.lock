@@ -4439,6 +4439,7 @@ dependencies = [
  "imgproc",
  "libwebrtc",
  "livekit",
+ "livekit-runtime",
  "log",
  "napi-build-ohos",
  "napi-derive-ohos",

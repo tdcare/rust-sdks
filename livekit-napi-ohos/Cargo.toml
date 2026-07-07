@@ -21,6 +21,7 @@ livekit = { path = "../livekit", features = [
 ] }
 libwebrtc = { path = "../libwebrtc" }
 smartward-call = { path = "../smartward-call" }
+livekit-runtime = { path = "../livekit-runtime" }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", "time", "net"] }
 futures = "0.3"
 imgproc = { path = "../imgproc" }

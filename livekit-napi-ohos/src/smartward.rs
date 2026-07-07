@@ -58,6 +58,10 @@ impl LkSwcEngine {
             .map_err(|e| {
                 Error::from_reason(format!("Failed to create Tokio runtime: {}", e))
             })?;
+        // Initialize Rust→hilog bridge so native logs are visible
+        crate::init_logger();
+        // Register with livekit-runtime so spawn() works from NAPI callbacks
+        livekit_runtime::set_runtime(runtime.handle().clone());
         Ok(Self {
             runtime: Arc::new(runtime),
             inner: Mutex::new(WebRtcEngine::new()),

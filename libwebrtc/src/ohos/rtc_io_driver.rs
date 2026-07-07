@@ -949,26 +949,32 @@ impl RtcIoDriver {
             kind,
             encodings,
         );
-        // Use add_transceiver_from_track instead of add_track. The rtc crate's
-        // add_track requires an existing compatible transceiver, which may not
-        // exist after the initial SDP negotiation (which only sets up the data
-        // channel). add_transceiver_from_track creates a new transceiver for
-        // the track, which will appear in subsequent offers.
-        let init = RTCRtpTransceiverInit {
-            direction: RTCRtpTransceiverDirection::Sendonly,
-            streams: vec![],
-            send_encodings: vec![],
+        // 先尝试 add_track（复用 setRemoteDescription 创建的 transceiver，共享 ICE transport）
+        // 失败再 fallback 到 add_transceiver_from_track（创建新 transceiver，可能不共享 ICE）
+        let sender_id = match self.rtc_pc.add_track(track.clone()) {
+            Ok(sid) => {
+                log::info!("do_add_track: add_track succeeded, reused existing transceiver, sender={:?}", sid);
+                sid
+            }
+            Err(e) => {
+                log::warn!("do_add_track: add_track failed ({}), falling back to add_transceiver_from_track", e);
+                let init = RTCRtpTransceiverInit {
+                    direction: RTCRtpTransceiverDirection::Sendonly,
+                    streams: vec![],
+                    send_encodings: vec![],
+                };
+                let tid = self.rtc_pc.add_transceiver_from_track(track, Some(init)).map_err(|e| {
+                    log::error!("do_add_track: add_transceiver_from_track failed for {}: {}", params.track_id, e);
+                    internal_err(e)
+                })?;
+                self.rtc_pc.rtp_transceiver(tid)
+                    .and_then(|t| t.sender())
+                    .ok_or_else(|| RtcError {
+                        error_type: RtcErrorType::Internal,
+                        message: format!("do_add_track: no sender on transceiver for {}", params.track_id),
+                    })?
+            }
         };
-        let tid = self.rtc_pc.add_transceiver_from_track(track, Some(init)).map_err(|e| {
-            log::error!("do_add_track: add_transceiver_from_track failed for {}: {}", params.track_id, e);
-            internal_err(e)
-        })?;
-        let sender_id = self.rtc_pc.rtp_transceiver(tid)
-            .and_then(|t| t.sender())
-            .ok_or_else(|| RtcError {
-                error_type: RtcErrorType::Internal,
-                message: format!("do_add_track: no sender on transceiver for {}", params.track_id),
-            })?;
         
         // Get the actual SSRC assigned by the rtc crate
         let actual_ssrc = self.rtc_pc.rtp_sender(sender_id)
