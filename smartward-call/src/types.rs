@@ -223,6 +223,13 @@ pub enum EngineEvent {
         state: P2pState,
     },
 
+    /// P2P 远端 track 到达
+    P2pRemoteTrack {
+        handle: PeerHandle,
+        track_id: String,
+        kind: MediaKind,
+    },
+
     // ---- SFU 事件 ----
 
     /// SFU 连接成功

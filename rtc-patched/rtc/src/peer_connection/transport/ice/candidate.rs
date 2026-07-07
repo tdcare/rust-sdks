@@ -183,7 +183,7 @@ impl RTCIceCandidate {
 
         Ok(RTCIceCandidateInit {
             candidate: format!("candidate:{}", candidate.marshal()),
-            sdp_mid: Some("".to_owned()),
+            sdp_mid: None,
             sdp_mline_index: Some(0u16),
             username_fragment: None,
             url: None,

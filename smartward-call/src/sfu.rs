@@ -136,8 +136,8 @@ impl SfuManager {
                                 handle,
                                 participant_id: participant.identity().to_string(),
                                 kind: match publication.kind() {
-                                    livekit::TrackKind::Audio => MediaKind::Audio,
-                                    livekit::TrackKind::Video => MediaKind::Video,
+                                    livekit::prelude::TrackKind::Audio => MediaKind::Audio,
+                                    livekit::prelude::TrackKind::Video => MediaKind::Video,
                                 },
                             });
                         }

@@ -9,7 +9,7 @@ $env:CXX_aarch64_unknown_linux_ohos = "aarch64-unknown-linux-ohos-clang++.cmd"
 $env:AR_aarch64_unknown_linux_ohos = "llvm-ar"
 $env:DEVECO_SDK_HOME = "C:\Program Files\Huawei\DevEco Studio\sdk"
 
-$root = "d:\tdcare\livekit\rust-sdks"
+$root = "d:\tdcare\td-zt9\smartward\rust-sdks"
 $appDir = "$root\examples\ohos-livekit-app"
 $hdc = "C:\Users\tzw\AppData\Local\OpenHarmony\Sdk\20\toolchains\hdc.exe"
 $hvigorw = "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.bat"

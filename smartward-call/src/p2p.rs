@@ -103,6 +103,12 @@ struct P2pSession {
     /// 使用 Arc<Mutex<>> 以便 p2p-native 回调线程安全写入
     events: Arc<Mutex<Vec<EngineEvent>>>,
     pc: Option<libwebrtc::peer_connection::PeerConnection>,
+    /// 本地音频源（通过 attach_audio 创建）
+    audio_source: Option<libwebrtc::audio_source::native::NativeAudioSource>,
+    /// 本地音频 track
+    audio_track: Option<libwebrtc::audio_track::RtcAudioTrack>,
+    /// 远端音频 track 存储（on_track 回调写入，take_remote_audio_track 取出）
+    remote_audio_tracks: Arc<Mutex<HashMap<String, libwebrtc::audio_track::RtcAudioTrack>>>,
 }
 
 impl P2pSession {
@@ -111,6 +117,9 @@ impl P2pSession {
             state: P2pState::New,
             events: Arc::new(Mutex::new(Vec::new())),
             pc: None,
+            audio_source: None,
+            audio_track: None,
+            remote_audio_tracks: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -186,6 +195,39 @@ impl P2pManager {
                         }
                     }) as OnConnectionChange));
 
+                    // ── 远端 track 回调 ──
+                    let events = session.events.clone();
+                    let remote_audio_tracks = session.remote_audio_tracks.clone();
+                    let cb_handle = handle;
+                    pc.on_track(Some(Box::new(move |track_event: libwebrtc::peer_connection::TrackEvent| {
+                        let track_id = track_event.track.id();
+                        let kind = match &track_event.track {
+                            libwebrtc::media_stream_track::MediaStreamTrack::Audio(audio_track) => {
+                                // 存储远端音频 track，供后续创建 NativeAudioStream
+                                if let Ok(mut tracks) = remote_audio_tracks.lock() {
+                                    tracks.insert(track_id.clone(), audio_track.clone());
+                                }
+                                MediaKind::Audio
+                            }
+                            libwebrtc::media_stream_track::MediaStreamTrack::Video(_) => {
+                                MediaKind::Video
+                            }
+                        };
+                        log::info!(
+                            "[P2P] {:?} remote track arrived: id={}, kind={:?}",
+                            cb_handle,
+                            track_id,
+                            kind
+                        );
+                        if let Ok(mut evts) = events.lock() {
+                            evts.push(EngineEvent::P2pRemoteTrack {
+                                handle: cb_handle,
+                                track_id,
+                                kind,
+                            });
+                        }
+                    }) as libwebrtc::peer_connection::OnTrack));
+
                     session.pc = Some(pc);
                 }
                 Err(e) => {
@@ -199,7 +241,11 @@ impl P2pManager {
             }
 
             // suppress unused-import warnings for these types (used above in Box::new)
-            let _ = (AnswerOptions::default(), OfferOptions::default());
+            let _ = (
+                AnswerOptions::default(),
+                OfferOptions::default(),
+            );
+            let _: libwebrtc::peer_connection::OnTrack = Box::new(|_| {});
         }
 
         self.sessions.insert(handle, session);
@@ -258,6 +304,8 @@ impl P2pManager {
     fn do_create_offer(&mut self, handle: PeerHandle) -> Result<SessionDescription, RtcError> {
         use conv::*;
         use libwebrtc::peer_connection::OfferOptions;
+        use libwebrtc::rtp_transceiver::{RtpTransceiverDirection, RtpTransceiverInit};
+        use libwebrtc::MediaType;
 
         let session = self
             .sessions
@@ -267,6 +315,28 @@ impl P2pManager {
             .pc
             .as_ref()
             .ok_or_else(|| RtcError::Internal("no peer connection".into()))?;
+
+        // Add audio and video transceivers before creating offer
+        // to ensure SDP contains m= sections with ICE credentials
+        pc.add_transceiver_for_media(
+            MediaType::Audio,
+            RtpTransceiverInit {
+                direction: RtpTransceiverDirection::SendRecv,
+                stream_ids: vec![],
+                send_encodings: vec![],
+            },
+        )
+        .map_err(map_err)?;
+
+        pc.add_transceiver_for_media(
+            MediaType::Video,
+            RtpTransceiverInit {
+                direction: RtpTransceiverDirection::SendRecv,
+                stream_ids: vec![],
+                send_encodings: vec![],
+            },
+        )
+        .map_err(map_err)?;
 
         let offer = block_on(pc.create_offer(OfferOptions::default())).map_err(map_err)?;
         block_on(pc.set_local_description(offer.clone())).map_err(map_err)?;
@@ -409,6 +479,113 @@ impl P2pManager {
 
         let lw_candidate = to_lw_ice(candidate)?;
         block_on(pc.add_ice_candidate(lw_candidate)).map_err(map_err)
+    }
+
+    // ---- 音频 ---- 
+
+    /// 为 P2P 连接绑定本地音频 track
+    ///
+    /// 创建 NativeAudioSource → 创建 RtcAudioTrack → add_track 到 PeerConnection。
+    /// add_track 会自动创建 RtpSendPipeline 并绑定到 audio source，
+    /// 之后通过 [`push_audio_frame`] 推送的 PCM 数据会被 Opus 编码后自动发送。
+    pub fn attach_audio(&mut self, handle: PeerHandle) -> Result<(), RtcError> {
+        let session = self
+            .sessions
+            .get_mut(&handle)
+            .ok_or(RtcError::InvalidHandle)?;
+        let pc = session
+            .pc
+            .as_ref()
+            .ok_or_else(|| RtcError::Internal("no peer connection".into()))?;
+
+        use libwebrtc::audio_source::AudioSourceOptions;
+        use libwebrtc::audio_source::native::NativeAudioSource;
+        use libwebrtc::media_stream_track::MediaStreamTrack;
+        use libwebrtc::peer_connection_factory::native::PeerConnectionFactoryExt;
+
+        // 创建音频源 (48kHz, mono, 20ms frames)
+        let source = NativeAudioSource::new(AudioSourceOptions::default(), 48000, 1, 20);
+
+        // 创建 audio track
+        let track = self.factory.create_audio_track("p2p_audio", source.clone());
+
+        // add_track 到 PeerConnection — 这会自动创建 RtpSendPipeline
+        pc.add_track(
+            MediaStreamTrack::Audio(track.clone()),
+            &["p2p_stream"],
+        )
+        .map_err(conv::map_err)?;
+
+        log::info!(
+            "[P2P] {:?} audio source attached: track_id={}",
+            handle,
+            track.id()
+        );
+
+        session.audio_source = Some(source);
+        session.audio_track = Some(track);
+        Ok(())
+    }
+
+    /// 推送 PCM 音频帧到 P2P 音频源
+    ///
+    /// PCM 数据会被内部 Opus 编码器处理，然后通过 RTP 发送到对端。
+    /// 调用前必须先调用 [`attach_audio`] 绑定音频源。
+    ///
+    /// `data` - 交错的 PCM 采样数据 (i16)
+    /// `sample_rate` - 采样率，必须与 attach_audio 时的参数匹配
+    /// `channels` - 声道数，必须与 attach_audio 时的参数匹配
+    /// `samples_per_channel` - 每声道采样数
+    pub fn push_audio_frame(
+        &self,
+        handle: PeerHandle,
+        data: &[i16],
+        sample_rate: u32,
+        channels: u32,
+        samples_per_channel: u32,
+    ) -> Result<(), RtcError> {
+        use libwebrtc::audio_frame::AudioFrame;
+
+        let session = self
+            .sessions
+            .get(&handle)
+            .ok_or(RtcError::InvalidHandle)?;
+        let source = session
+            .audio_source
+            .as_ref()
+            .ok_or_else(|| RtcError::Internal("no audio source attached".into()))?;
+
+        let frame = AudioFrame {
+            data: std::borrow::Cow::Borrowed(data),
+            sample_rate,
+            num_channels: channels,
+            samples_per_channel,
+        };
+
+        crate::block_on(source.capture_frame(&frame)).map_err(conv::map_err)
+    }
+
+    /// 取出远端音频 track（内部从 on_track 回调中存储的）
+    ///
+    /// 取出后该 track 从 session 中移除，调用方负责创建 NativeAudioStream。
+    /// 返回 `None` 表示 track 不存在或已被取出。
+    pub fn take_remote_audio_track(
+        &self,
+        handle: PeerHandle,
+        track_id: &str,
+    ) -> Option<libwebrtc::audio_track::RtcAudioTrack> {
+        let session = self.sessions.get(&handle)?;
+        let mut tracks = session.remote_audio_tracks.lock().ok()?;
+        tracks.remove(track_id)
+    }
+
+    /// 远端音频 track 是否已到达
+    pub fn has_remote_audio_track(&self, handle: PeerHandle, track_id: &str) -> bool {
+        self.sessions
+            .get(&handle)
+            .and_then(|s| s.remote_audio_tracks.lock().ok())
+            .map(|tracks| tracks.contains_key(track_id))
+            .unwrap_or(false)
     }
 
     // ---- 事件 ----

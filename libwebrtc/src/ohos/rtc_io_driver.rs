@@ -90,11 +90,18 @@ use super::session_description::SessionDescription as ImpSessionDescription;
 /// The driver will still wake whenever a packet arrives or a command comes
 /// in, so this only bounds the worst-case latency for waking up to drain
 /// state-change events that might happen on internal book-keeping timers.
-const IDLE_TICK: Duration = Duration::from_millis(500);
+/// Default fall-back interval used when the rtc crate has no pending timer.
+///
+/// 20ms matches the recv_from timeout used in tdnis-ohos.  A shorter
+/// tick ensures handle_timeout() drives the ICE state machine at least
+/// every 20ms even when the socket is idle, preventing ICE connectivity
+/// checks from stalling.
+const IDLE_TICK: Duration = Duration::from_millis(20);
 
-/// Maximum size of the UDP receive buffer. WebRTC packets are constrained
-/// to the path MTU, so 2 KiB is comfortably above any realistic value.
-const RECV_BUF_SIZE: usize = 2048;
+/// Maximum size of the UDP receive buffer.  DTLS handshake packets can be
+/// quite large (up to ~60 KiB with certificate chains), so we use 64 KiB to
+/// match the tdnis-ohos buffer size and avoid truncation.
+const RECV_BUF_SIZE: usize = 65536;
 
 // ---------------------------------------------------------------------------
 // Channel message types
@@ -314,6 +321,8 @@ pub(crate) struct RtcIoDriver {
     /// Track IDs for which an SSRC mismatch between the pipeline and the
     /// rtc crate has already been logged.  Deduplicated to avoid log spam.
     rtp_ssrc_mismatch_logged: HashSet<String>,
+    /// Last observed ICE connection state (updated in drain_events).
+    last_ice_state: RTCIceConnectionState,
 }
 
 impl RtcIoDriver {
@@ -336,6 +345,7 @@ impl RtcIoDriver {
             host_candidate_added: false,
             rtp_write_logged: HashSet::new(),
             rtp_ssrc_mismatch_logged: HashSet::new(),
+            last_ice_state: RTCIceConnectionState::Unspecified,
         }
     }
 
@@ -368,6 +378,7 @@ impl RtcIoDriver {
             .map_err(internal_err)?;
         self.rtc_pc.add_local_candidate(init).map_err(internal_err)?;
         self.host_candidate_added = true;
+        println!("[RtcIoDriver] added host candidate: {}:{}", self.local_addr.ip(), self.local_addr.port());
         log::info!(
             "rtc_io_driver: added local host ICE candidate {}:{}",
             self.local_addr.ip(),
@@ -376,18 +387,15 @@ impl RtcIoDriver {
         Ok(())
     }
 
-    /// Main event loop. Mirrors the recommended sequence from the rtc
-    /// crate documentation:
+    /// Main event loop.  Ordering is aligned with the proven tdnis-ohos
+    /// loop so that STUN responses are sent in the same iteration that
+    /// received them, avoiding ICE connectivity stalls:
     ///
-    ///   1. Drain pending writes via `poll_write` and ship them on the
-    ///      UDP socket.
-    ///   2. Drain pending events via `poll_event` and forward them to
-    ///      the public wrapper.
-    ///   3. Drain decrypted RTP packets via `poll_read` into per-track
-    ///      consumer queues.
-    ///   4. Compute the next timeout via `poll_timeout`.
-    ///   5. `tokio::select!` between socket reads, control commands and
-    ///      the timer expiring.
+    ///   1. `select!` – recv_from (20ms timeout), commands, timer expiry
+    ///   2. `handle_timeout`  – drive ICE/DTLS state machine EVERY iteration
+    ///   3. `drain_events`    – forward state-change events
+    ///   4. `drain_reads`     – forward decrypted RTP to per-track queues
+    ///   5. `drain_writes`    – poll_write + send_to (STUN responses zero-latency)
     pub(crate) async fn run(mut self) {
         log::info!(
             "[RtcIoDriver] run() started, local_addr={}",
@@ -399,33 +407,23 @@ impl RtcIoDriver {
         loop {
             loop_count += 1;
 
-            // 1) Drain outgoing packets
-            self.drain_writes().await;
+            // 1) Compute timeout, capped to IDLE_TICK for responsiveness.
+            //    Unlike the old code, we NEVER skip the select! block — even
+            //    when delay.is_zero(), we still enter select! so recv_from
+            //    can drain pending STUN/DTLS packets.
+            let delay = self
+                .rtc_pc
+                .poll_timeout()
+                .map(|instant| instant.saturating_duration_since(Instant::now()))
+                .unwrap_or(IDLE_TICK);
+            let delay = delay.min(IDLE_TICK);
 
-            // 2) Drain protocol events (state changes, ICE candidates, ...)
-            self.drain_events();
-
-            // 3) Drain decrypted inbound RTP packets into per-track queues
-            self.drain_reads();
-
-            // 4) Compute timeout
-            let now = Instant::now();
-            let timeout_at = self.rtc_pc.poll_timeout().unwrap_or(now + IDLE_TICK);
-            let delay = timeout_at.saturating_duration_since(now);
-
-            // Fast-path: timer is already due.
-            if delay.is_zero() {
-                if let Err(err) = self.rtc_pc.handle_timeout(Instant::now()) {
-                    log::warn!("rtc handle_timeout failed: {err}");
-                }
-                continue;
-            }
-
+            // 2) Wait for next stimulus: incoming UDP packet, control command,
+            //    or timer expiry.
             let sleep = tokio::time::sleep(delay);
             tokio::pin!(sleep);
 
-            // 4) Wait for next stimulus
-            tokio::select! {
+            let should_break = tokio::select! {
                 biased;
 
                 cmd = self.cmd_rx.recv() => {
@@ -438,7 +436,7 @@ impl RtcIoDriver {
                             let _ = self.rtc_pc.close();
                             self.drain_writes().await;
                             self.drain_events();
-                            break;
+                            true // should_break
                         }
                         None => {
                             log::info!(
@@ -448,7 +446,7 @@ impl RtcIoDriver {
                             let _ = self.rtc_pc.close();
                             self.drain_writes().await;
                             self.drain_events();
-                            break;
+                            true // should_break
                         }
                         Some(cmd) => {
                             let result = std::panic::catch_unwind(
@@ -468,8 +466,8 @@ impl RtcIoDriver {
                                     "[RtcIoDriver] handle_command panicked (loop #{}): {}. Driver continues.",
                                     loop_count, msg
                                 );
-                                // Do NOT break — keep the driver alive
                             }
+                            false // should_break
                         }
                     }
                 }
@@ -490,19 +488,47 @@ impl RtcIoDriver {
                             if let Err(err) = self.rtc_pc.handle_read(msg) {
                                 log::warn!("rtc handle_read failed: {err}");
                             }
+                            println!("[RtcIoDriver] handle_read: {} bytes from {}", n, peer_addr);
                         }
                         Err(err) => {
                             log::error!("UDP recv_from failed: {err}");
                         }
                     }
+                    false // should_break
                 }
 
                 _ = &mut sleep => {
-                    if let Err(err) = self.rtc_pc.handle_timeout(Instant::now()) {
-                        log::warn!("rtc handle_timeout failed: {err}");
-                    }
+                    false // should_break
                 }
+            };
+
+            if should_break {
+                break;
             }
+
+            // 3) Drive the ICE/DTLS state machine timers EVERY iteration.
+            //    This must run unconditionally — skipping it (as the old
+            //    delay.is_zero() fast-path did via `continue`) prevents the
+            //    ICE agent from advancing connectivity checks to the
+            //    "Connected" state.
+            if let Err(err) = self.rtc_pc.handle_timeout(Instant::now()) {
+                log::warn!("rtc handle_timeout failed: {err}");
+            }
+            if loop_count % 100 == 0 {
+                println!("[RtcIoDriver] loop_count={}, ICE state: {:?}", loop_count, self.last_ice_state);
+            }
+
+            // 4) Drain protocol events (state changes, ICE candidates, ...)
+            self.drain_events();
+
+            // 5) Drain decrypted inbound RTP packets into per-track queues
+            self.drain_reads();
+
+            // 6) Drain outgoing packets (poll_write + send_to).
+            //    Running this AFTER handle_timeout means STUN responses
+            //    produced by this iteration's ICE state machine tick are
+            //    sent with zero latency, matching tdnis-ohos behaviour.
+            self.drain_writes().await;
         }
 
         log::info!(
@@ -522,9 +548,19 @@ impl RtcIoDriver {
             let TaggedBytesMut { transport, message, .. } = out;
             pkt_count += 1;
             total_bytes += message.len();
+            // Skip address family mismatches: ICE agent may produce IPv6 target
+            // while socket is bound to IPv4, causing send_to to silently fail.
+            if self.local_addr.is_ipv4() != transport.peer_addr.is_ipv4() {
+                log::warn!(
+                    "[RtcIoDriver] skipping address family mismatch: local={} peer={}",
+                    self.local_addr, transport.peer_addr
+                );
+                continue;
+            }
             if let Err(err) = self.socket.send_to(&message, transport.peer_addr).await {
                 log::warn!("UDP send_to {} failed: {err}", transport.peer_addr);
             }
+            println!("[RtcIoDriver] send_to: {} bytes to {}", message.len(), transport.peer_addr);
         }
         if pkt_count > 0 {
             log::info!(
@@ -597,6 +633,19 @@ impl RtcIoDriver {
             }
 
             for mapped in map_rtc_event(evt) {
+                // Track last ICE connection state for periodic diagnostics
+                if let PcEvent::IceConnectionStateChange(ref state) = mapped {
+                    self.last_ice_state = match state {
+                        IceConnectionState::New => RTCIceConnectionState::New,
+                        IceConnectionState::Checking => RTCIceConnectionState::Checking,
+                        IceConnectionState::Connected => RTCIceConnectionState::Connected,
+                        IceConnectionState::Completed => RTCIceConnectionState::Completed,
+                        IceConnectionState::Disconnected => RTCIceConnectionState::Disconnected,
+                        IceConnectionState::Failed => RTCIceConnectionState::Failed,
+                        IceConnectionState::Closed => RTCIceConnectionState::Closed,
+                        IceConnectionState::Max => RTCIceConnectionState::Unspecified,
+                    };
+                }
                 if self.event_tx.send(mapped).is_err() {
                     // Public wrapper has gone away; nothing else to do.
                     return;
@@ -750,6 +799,7 @@ impl RtcIoDriver {
     }
 
     fn do_add_ice_candidate(&mut self, candidate: ImpIceCandidate) -> Result<(), RtcError> {
+        println!("[RtcIoDriver] add_remote_candidate: {}", candidate.candidate);
         let init = RTCIceCandidateInit {
             candidate: candidate.candidate.clone(),
             sdp_mid: Some(candidate.sdp_mid.clone()),
@@ -965,10 +1015,18 @@ impl RtcIoDriver {
         direction: RtpTransceiverDirection,
     ) -> Result<TransceiverInfo, RtcError> {
         let codec_kind = media_type_to_codec_kind(kind)?;
+        let rtc_direction = imp_direction_to_rtc(direction);
+        // rtc crate's add_transceiver_from_kind rejects Sendrecv/Sendonly
+        // when send_encodings is empty (ErrInvalidDirection).
+        let send_encodings = if rtc_direction.has_send() {
+            vec![RTCRtpEncodingParameters::default()]
+        } else {
+            vec![]
+        };
         let init = RTCRtpTransceiverInit {
-            direction: imp_direction_to_rtc(direction),
+            direction: rtc_direction,
             streams: Vec::new(),
-            send_encodings: Vec::new(),
+            send_encodings,
         };
         let tid = self
             .rtc_pc
@@ -1290,9 +1348,11 @@ fn map_rtc_event(evt: RTCPeerConnectionEvent) -> Vec<PcEvent> {
             vec![PcEvent::SignalingStateChange(map_signaling_state(state))]
         }
         RTCPeerConnectionEvent::OnIceConnectionStateChangeEvent(state) => {
+            println!("[RtcIoDriver] ICE event: IceConnectionStateChange => {:?}", state);
             vec![PcEvent::IceConnectionStateChange(map_ice_conn_state(state))]
         }
         RTCPeerConnectionEvent::OnIceGatheringStateChangeEvent(state) => {
+            println!("[RtcIoDriver] ICE event: IceGatheringStateChange => {:?}", state);
             vec![PcEvent::IceGatheringStateChange(map_ice_gathering_state(state))]
         }
         RTCPeerConnectionEvent::OnConnectionStateChangeEvent(state) => {

@@ -71,6 +71,7 @@ mod ffi;
 
 pub use types::*;
 pub use router::SessionRouter;
+pub use libwebrtc::audio_track::RtcAudioTrack;
 
 use p2p::P2pManager;
 use sfu::SfuManager;
@@ -157,6 +158,45 @@ impl WebRtcEngine {
     /// 关闭 P2P 连接
     pub fn close_p2p(&mut self, handle: PeerHandle) {
         self.p2p.close(handle);
+    }
+
+    /// 为 P2P 连接绑定本地音频 track
+    ///
+    /// 创建音频源并添加到 PeerConnection，之后可通过 [`push_p2p_audio_frame`] 推送 PCM 数据。
+    pub fn attach_p2p_audio(&mut self, handle: PeerHandle) -> Result<(), RtcError> {
+        self.p2p.attach_audio(handle)
+    }
+
+    /// 推送 PCM 音频帧到 P2P 音频源
+    ///
+    /// 调用前必须先调用 [`attach_p2p_audio`]。
+    pub fn push_p2p_audio_frame(
+        &self,
+        handle: PeerHandle,
+        data: &[i16],
+        sample_rate: u32,
+        channels: u32,
+        samples_per_channel: u32,
+    ) -> Result<(), RtcError> {
+        self.p2p.push_audio_frame(handle, data, sample_rate, channels, samples_per_channel)
+    }
+
+    /// 取出远端 P2P 音频 track（用于创建 NativeAudioStream 播放）
+    ///
+    /// 远端 track 通过 `on_track` 回调到达后，内部存储；
+    /// 上层在收到 [`EngineEvent::P2pRemoteTrack`] 后调用此方法取出。
+    /// 返回 `None` 表示 track 不存在或已被取出。
+    pub fn take_p2p_remote_audio_track(
+        &self,
+        handle: PeerHandle,
+        track_id: &str,
+    ) -> Option<RtcAudioTrack> {
+        self.p2p.take_remote_audio_track(handle, track_id)
+    }
+
+    /// 检查远端 P2P 音频 track 是否已到达
+    pub fn has_p2p_remote_audio_track(&self, handle: PeerHandle, track_id: &str) -> bool {
+        self.p2p.has_remote_audio_track(handle, track_id)
     }
 
     // ============================================================

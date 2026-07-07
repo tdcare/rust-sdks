@@ -10,5 +10,5 @@ $env:CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_LINKER = "$env:OHOS_LLVM\clang.exe"
 $env:CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_RUSTFLAGS = "-C link-arg=-fuse-ld=lld -C link-arg=--target=aarch64-unknown-linux-ohos -C link-arg=--sysroot=$env:OHOS_SYSROOT"
 $env:PATH = "$env:OHOS_LLVM;$env:PATH"
 
-Set-Location d:\tdcare\livekit\rust-sdks
+Set-Location d:\tdcare\td-zt9\smartward\rust-sdks
 cargo build -p livekit-napi-ohos --target aarch64-unknown-linux-ohos --release
