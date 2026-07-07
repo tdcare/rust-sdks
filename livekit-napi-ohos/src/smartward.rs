@@ -60,8 +60,6 @@ impl LkSwcEngine {
             })?;
         // Initialize Rust→hilog bridge so native logs are visible
         crate::init_logger();
-        // Register with livekit-runtime so spawn() works from NAPI callbacks
-        livekit_runtime::set_runtime(runtime.handle().clone());
         Ok(Self {
             runtime: Arc::new(runtime),
             inner: Mutex::new(WebRtcEngine::new()),
@@ -304,6 +302,13 @@ impl LkSwcEngine {
             log::error!("push_p2p_audio_frame panicked: {}", msg);
             Error::from_reason(format!("push_p2p_audio_frame panicked: {}", msg))
         })?
+    }
+
+    /// 推送远端参考帧用于 AEC（回声消除）。
+    #[napi]
+    pub fn push_p2p_reference_frame(&self, handle: i64, data: Vec<i16>) {
+        let engine = self.inner.lock();
+        engine.push_p2p_reference_frame(PeerHandle::from(handle as u64), &data);
     }
 
     /// 从远端 P2P audio track 创建音频流（用于播放远端音频）。

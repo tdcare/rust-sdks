@@ -447,6 +447,19 @@ impl P2pManager {
             .ok_or_else(|| RtcError::Internal("no peer connection".into()))?;
 
         let lw_sdp = to_lw_sdp(sdp)?;
+        // 预创建音频 transceiver (SendRecv)，避免后续 add_track 创建无 ICE 的新 transceiver
+        if pc.transceivers().is_empty() {
+            use libwebrtc::rtp_transceiver::{RtpTransceiverDirection, RtpTransceiverInit};
+            pc.add_transceiver_for_media(
+                libwebrtc::MediaType::Audio,
+                RtpTransceiverInit {
+                    direction: RtpTransceiverDirection::SendRecv,
+                    stream_ids: vec![],
+                    send_encodings: vec![],
+                },
+            )
+            .map_err(map_err)?;
+        }
         block_on(pc.set_remote_description(lw_sdp)).map_err(map_err)
     }
 
@@ -507,16 +520,9 @@ impl P2pManager {
         use libwebrtc::peer_connection_factory::native::PeerConnectionFactoryExt;
 
         // 创建音频源 (48kHz, mono, 20ms frames)
-        // 启用 AEC（回声消除）+ NS（噪声抑制）+ AGC（自动增益）
-        // 防止设备靠近时扬声器声音被麦克风重新采集导致啸叫
-        let source = NativeAudioSource::new(
-            AudioSourceOptions {
-                echo_cancellation: true,
-                noise_suppression: true,
-                auto_gain_control: true,
-            },
-            48000, 1, 20,
-        );
+        let source = NativeAudioSource::new(AudioSourceOptions::default(), 48000, 1, 20);
+        // 启用软件 AEC（sonora WebRTC AEC3）
+        source.init_aec();
 
         // 创建 audio track
         let track = self.factory.create_audio_track("p2p_audio", source.clone());
@@ -575,6 +581,15 @@ impl P2pManager {
         };
 
         crate::block_on(source.capture_frame(&frame)).map_err(conv::map_err)
+    }
+
+    /// 推送远端参考帧用于 AEC（回声消除）
+    pub fn push_reference_frame(&self, handle: PeerHandle, data: &[i16]) {
+        if let Some(session) = self.sessions.get(&handle) {
+            if let Some(source) = &session.audio_source {
+                source.push_reference_frame(data);
+            }
+        }
     }
 
     /// 取出远端音频 track（内部从 on_track 回调中存储的）

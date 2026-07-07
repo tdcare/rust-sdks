@@ -950,7 +950,7 @@ impl RtcIoDriver {
             encodings,
         );
         // 先尝试 add_track（复用 setRemoteDescription 创建的 transceiver，共享 ICE transport）
-        // 失败再 fallback 到 add_transceiver_from_track（创建新 transceiver，可能不共享 ICE）
+        // 失败再 fallback 到 add_transceiver_from_track（创建新 transceiver）
         let sender_id = match self.rtc_pc.add_track(track.clone()) {
             Ok(sid) => {
                 log::info!("do_add_track: add_track succeeded, reused existing transceiver, sender={:?}", sid);

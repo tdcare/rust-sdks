@@ -85,6 +85,12 @@ impl NativeAudioSource {
         self.num_channels
     }
 
+    /// Stub: no-op on non-OHOS platforms.
+    pub fn init_aec(&self) {}
+
+    /// Stub: no-op on non-OHOS platforms.
+    pub fn push_reference_frame(&self, _data: &[i16]) {}
+
     pub fn clear_buffer(&self) {
         self.sys_handle.clear_buffer();
     }

@@ -181,6 +181,11 @@ impl WebRtcEngine {
         self.p2p.push_audio_frame(handle, data, sample_rate, channels, samples_per_channel)
     }
 
+    /// 推送远端参考帧用于 AEC（回声消除）
+    pub fn push_p2p_reference_frame(&self, handle: PeerHandle, data: &[i16]) {
+        self.p2p.push_reference_frame(handle, data);
+    }
+
     /// 取出远端 P2P 音频 track（用于创建 NativeAudioStream 播放）
     ///
     /// 远端 track 通过 `on_track` 回调到达后，内部存储；
