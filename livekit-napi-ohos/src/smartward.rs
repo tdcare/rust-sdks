@@ -1,4 +1,4 @@
-//! ArkTS-facing wrapper around [`smartward_call::WebRtcEngine`].
+//! ArkTS-facing wrapper around [`p2p::WebRtcEngine`].
 //!
 //! Exposes the SmartWard call engine to ArkTS via napi-ohos.
 //! All complex types cross the boundary as JSON strings.
@@ -8,9 +8,9 @@ use std::sync::Arc;
 use napi_derive_ohos::napi;
 use napi_ohos::bindgen_prelude::*;
 use parking_lot::Mutex;
-use smartward_call::{
-    EngineEvent, IceCandidate, P2pConfig, PeerHandle, RtcAudioTrack, SessionDescription, SfuConfig,
-    SfuHandle, WebRtcEngine,
+use p2p::{
+    EngineEvent, IceCandidate, P2pConfig, PeerHandle, RtcAudioTrack, SessionDescription,
+    WebRtcEngine,
 };
 
 use crate::audio_stream::LkAudioStream;
@@ -20,7 +20,7 @@ use libwebrtc::audio_stream::native::NativeAudioStream;
 // Error mapping
 // ============================================================
 
-fn map_err(e: smartward_call::RtcError) -> Error {
+fn map_err(e: p2p::RtcError) -> Error {
     Error::from_reason(e.to_string())
 }
 
@@ -34,7 +34,7 @@ fn json_err(e: impl std::fmt::Display) -> Error {
 
 /// SmartWard WebRTC 呼叫引擎。
 ///
-/// 统一管理 P2P PeerConnection 和 SFU LiveKit 会话。
+/// 管理 P2P PeerConnection 音视频通信。
 /// ArkTS 用法:
 /// ```typescript
 /// import { LkSwcEngine } from 'liblivekit.so';
@@ -359,63 +359,10 @@ impl LkSwcEngine {
     }
 
     // ============================================================
-    // SFU
-    // ============================================================
-
-    /// 创建 SFU 会话。
-    ///
-    /// `config_json` - JSON 格式的 SfuConfig。
-    /// 返回会话句柄 (i64)。
-    #[napi]
-    pub fn create_sfu_session(&self, config_json: String) -> Result<i64> {
-        let _guard = self.runtime.enter();
-        let config: SfuConfig = serde_json::from_str(&config_json).map_err(json_err)?;
-        let mut engine = self.inner.lock();
-        let handle = engine.create_sfu_session(config);
-        Ok(handle.as_u64() as i64)
-    }
-
-    /// 连接 SFU 会话到 LiveKit 服务器。
-    #[napi]
-    pub fn connect_sfu(&self, handle: i64) -> Result<()> {
-        let _guard = self.runtime.enter();
-        let mut engine = self.inner.lock();
-        engine
-            .connect_sfu(SfuHandle::from(handle as u64))
-            .map_err(map_err)
-    }
-
-    /// 断开 SFU 连接。
-    #[napi]
-    pub fn disconnect_sfu(&self, handle: i64) -> Result<()> {
-        let _guard = self.runtime.enter();
-        let mut engine = self.inner.lock();
-        engine.disconnect_sfu(SfuHandle::from(handle as u64));
-        Ok(())
-    }
-
-    /// 关闭（销毁）SFU 会话。
-    #[napi]
-    pub fn close_sfu(&self, handle: i64) -> Result<()> {
-        let _guard = self.runtime.enter();
-        let mut engine = self.inner.lock();
-        engine.close_sfu(SfuHandle::from(handle as u64));
-        Ok(())
-    }
-
-    /// SFU 是否可用（至少有一个已连接的会话）。
-    #[napi]
-    pub fn is_sfu_available(&self) -> Result<bool> {
-        let _guard = self.runtime.enter();
-        let engine = self.inner.lock();
-        Ok(engine.is_sfu_available())
-    }
-
-    // ============================================================
     // 事件
     // ============================================================
 
-    /// 轮询所有待处理事件 (P2P + SFU)，返回 JSON 数组字符串。
+    /// 轮询所有待处理事件 (P2P)，返回 JSON 数组字符串。
     ///
     /// 空事件时返回 `"[]"`。
     #[napi]
@@ -430,7 +377,7 @@ impl LkSwcEngine {
     // 生命周期
     // ============================================================
 
-    /// 关闭所有连接和会话。
+    /// 关闭所有连接。
     #[napi]
     pub fn shutdown(&self) -> Result<()> {
         let _guard = self.runtime.enter();
@@ -439,32 +386,4 @@ impl LkSwcEngine {
         Ok(())
     }
 
-    // ============================================================
-    // SessionRouter – 纯函数，无需实例
-    // ============================================================
-
-    /// 解析传输模式。
-    ///
-    /// - `local_ward` / `target_ward` - 病区编号
-    /// - `is_broadcast` - 是否为一对多广播
-    ///
-    /// 返回值:
-    /// - `0` → P2P（科内点对点）
-    /// - `1` → SFU（跨科室/广播）
-    #[napi]
-    pub fn resolve_transport_mode(
-        local_ward: String,
-        target_ward: String,
-        is_broadcast: bool,
-    ) -> i32 {
-        let mode = smartward_call::SessionRouter::resolve(
-            &local_ward,
-            &target_ward,
-            is_broadcast,
-        );
-        match mode {
-            smartward_call::TransportMode::P2P => 0,
-            smartward_call::TransportMode::SFU => 1,
-        }
-    }
 }

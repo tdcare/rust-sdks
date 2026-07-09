@@ -12,7 +12,7 @@ members = [
     "livekit-wakeword",
     "livekit-napi-ohos",
     "libwebrtc",
-    "smartward-call",
+    "p2p",
     "soxr-sys",
     "yuv-sys",
     "imgproc",

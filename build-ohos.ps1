@@ -1,48 +1,52 @@
 $ErrorActionPreference = 'Stop'
 
 # ---- Environment ----
-$env:PATH = "C:\Users\tzw\AppData\Local\OpenHarmony\Sdk\12\native\llvm\bin;C:\Users\tzw\AppData\Local\OpenHarmony\Sdk\12\native\build-tools\cmake\bin;" + $env:PATH
 $env:OHOS_SDK_HOME = "C:\Users\tzw\AppData\Local\OpenHarmony\Sdk\12"
+$env:OHOS_NDK = "$env:OHOS_SDK_HOME\native"
+$env:OHOS_SYSROOT = "$env:OHOS_NDK\sysroot"
+$env:OHOS_LLVM = "$env:OHOS_NDK\llvm\bin"
+$env:CC_aarch64_unknown_linux_ohos = "$env:OHOS_LLVM\clang.exe --target=aarch64-unknown-linux-ohos --sysroot=$env:OHOS_SYSROOT"
+$env:CXX_aarch64_unknown_linux_ohos = "$env:OHOS_LLVM\clang++.exe --target=aarch64-unknown-linux-ohos --sysroot=$env:OHOS_SYSROOT"
+$env:AR_aarch64_unknown_linux_ohos = "$env:OHOS_LLVM\llvm-ar.exe"
+$env:RANLIB_aarch64_unknown_linux_ohos = "$env:OHOS_LLVM\llvm-ranlib.exe"
+$env:CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_LINKER = "$env:OHOS_LLVM\clang.exe"
+$env:CARGO_TARGET_AARCH64_UNKNOWN_LINUX_OHOS_RUSTFLAGS = "-C link-arg=-fuse-ld=lld -C link-arg=--target=aarch64-unknown-linux-ohos -C link-arg=--sysroot=$env:OHOS_SYSROOT"
+$env:CMAKE_TOOLCHAIN_FILE_aarch64_unknown_linux_ohos = "$env:OHOS_NDK\build\cmake\ohos.toolchain.cmake"
 $env:CMAKE_GENERATOR = "Ninja"
-$env:CC_aarch64_unknown_linux_ohos = "aarch64-unknown-linux-ohos-clang.cmd"
-$env:CXX_aarch64_unknown_linux_ohos = "aarch64-unknown-linux-ohos-clang++.cmd"
-$env:AR_aarch64_unknown_linux_ohos = "llvm-ar"
-$env:DEVECO_SDK_HOME = "C:\Program Files\Huawei\DevEco Studio\sdk"
+$env:PATH = "$env:OHOS_LLVM;$env:OHOS_NDK\build-tools\cmake\bin;$env:PATH"
 
-$root = "d:\tdcare\td-zt9\smartward\rust-sdks"
-$appDir = "$root\examples\ohos-livekit-app"
-$hdc = "C:\Users\tzw\AppData\Local\OpenHarmony\Sdk\20\toolchains\hdc.exe"
-$hvigorw = "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.bat"
+$rustSdks = "d:\tdcare\td-zt9\smartward\rust-sdks"
+$ohosDir = "d:\tdcare\td-zt9\smartward\ohos"
 
-# ---- Step 1: Build Rust native library ----
-Write-Host "===== Step 1: Build Rust native library =====" -ForegroundColor Cyan
-Set-Location "$root\livekit-napi-ohos"
-ohrs build
-if ($LASTEXITCODE -ne 0) { throw "ohrs build failed" }
+# ---- Step 1: Build Rust native library (cargo build instead of ohrs build) ----
+Write-Host "===== Step 1: Build livekit-napi-ohos (Rust -> .so) =====" -ForegroundColor Cyan
+Set-Location $rustSdks
+cargo build -p livekit-napi-ohos --target aarch64-unknown-linux-ohos --release
+if ($LASTEXITCODE -ne 0) { throw "cargo build failed" }
 
-# ---- Step 2: Copy .so to app libs ----
-Write-Host "`n===== Step 2: Copy .so to app libs =====" -ForegroundColor Cyan
-$soSrc = "$root\livekit-napi-ohos\dist\arm64-v8a\liblivekit_napi_ohos.so"
-$soDst = "$appDir\libs\arm64-v8a\liblivekit.so"
-if (Test-Path $soSrc) {
-    Copy-Item $soSrc $soDst -Force
-    Write-Host "Copied liblivekit.so ($(((Get-Item $soSrc).Length / 1MB).ToString('F1')) MB)"
-} else {
-    throw "liblivekit_napi_ohos.so not found at $soSrc"
+# ---- Step 2: Copy liblivekit.so to all OHOS apps ----
+Write-Host "`n===== Step 2: Copy liblivekit.so to OHOS apps =====" -ForegroundColor Cyan
+$soSrc = "$rustSdks\target\aarch64-unknown-linux-ohos\release\liblivekit_napi_ohos.so"
+if (-not (Test-Path $soSrc)) { throw "liblivekit_napi_ohos.so not found at $soSrc" }
+
+$soSize = "{0:F1} MB" -f ((Get-Item $soSrc).Length / 1MB)
+Write-Host "Source: $soSrc ($soSize)"
+
+$apps = @("bedside", "gate", "nursestation", "corridor")
+foreach ($app in $apps) {
+    $dst = "$ohosDir\$app\entry\libs\arm64-v8a\liblivekit.so"
+    Copy-Item $soSrc $dst -Force
+    Write-Host "  -> $app"
 }
 
-# ---- Step 3: Build HAP with hvigorw ----
-Write-Host "`n===== Step 3: Build HAP =====" -ForegroundColor Cyan
-Set-Location $appDir
-& $hvigorw --mode module -p module=entry@default -p product=default assembleHap --no-daemon 2>&1 | ForEach-Object { Write-Host $_ }
-if ($LASTEXITCODE -ne 0) { throw "hvigorw build failed" }
+# Clean up stale libsmartward_call.so (now integrated into p2p crate, linked statically)
+foreach ($app in $apps) {
+    $stale = "$ohosDir\$app\entry\libs\arm64-v8a\libsmartward_call.so"
+    if (Test-Path $stale) {
+        Remove-Item $stale -Force
+        Write-Host "  Removed stale: $app/libsmartward_call.so"
+    }
+}
 
-# ---- Step 4: Install ----
-Write-Host "`n===== Step 4: Install =====" -ForegroundColor Cyan
-$signedHap = "$appDir\entry\build\default\outputs\default\entry-default-signed.hap"
-if (-not (Test-Path $signedHap)) { throw "Signed HAP not found: $signedHap" }
-
-Set-Location "C:\"
-& $hdc install -r $signedHap 2>&1 | ForEach-Object { Write-Host $_ }
-
-Write-Host "`n===== Done =====" -ForegroundColor Green
+Write-Host "`n===== Rust build complete =====" -ForegroundColor Green
+Write-Host "To build HAPs, run individual build scripts in each OHOS app."

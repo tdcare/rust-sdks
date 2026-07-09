@@ -1,9 +1,9 @@
 ﻿[package]
-name = "smartward-call"
+name = "p2p"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
-description = "SmartWard 呼叫引擎 — 纯 WebRTC P2P/SFU 双模，信令由上层处理"
+description = "SmartWard 呼叫引擎 — 纯 WebRTC P2P 直连，信令由上层处理"
 repository.workspace = true
 readme = "README.md"
 
@@ -17,6 +17,4 @@ thiserror = { workspace = true }
 log = { workspace = true }
 
 libwebrtc = { workspace = true }
-livekit = { workspace = true, features = ["__rustls-tls", "rustls-tls-webpki-roots"] }
-livekit-api = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }

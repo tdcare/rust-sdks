@@ -1,4 +1,4 @@
-//! C-compatible FFI layer for smartward-call.
+//! C-compatible FFI layer for p2p.
 //!
 //! All functions are `extern "C"` and safe to call from any language
 //! with C FFI support (JNI for Android, NAPI for OHOS, etc.).
@@ -18,7 +18,7 @@ use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 
 use crate::{
-    EngineEvent, IceCandidate, P2pConfig, SessionDescription, SfuConfig, WebRtcEngine,
+    EngineEvent, IceCandidate, P2pConfig, SessionDescription, WebRtcEngine,
 };
 
 // ============================================================
@@ -223,92 +223,6 @@ pub extern "C" fn swc_p2p_close(engine: *mut WebRtcEngine, handle: u64) {
 }
 
 // ============================================================
-// SFU API
-// ============================================================
-
-/// Create an SFU session.
-///
-/// `config_json`: JSON representation of [`SfuConfig`].
-/// Returns the session handle (> 0), or 0 on error.
-#[no_mangle]
-pub extern "C" fn swc_sfu_create(
-    engine: *mut WebRtcEngine,
-    config_json: *const c_char,
-    error_msg: *mut *mut c_char,
-) -> u64 {
-    if engine.is_null() {
-        set_error(error_msg, "engine is null");
-        return 0;
-    }
-    let engine = unsafe { &mut *engine };
-
-    let config: SfuConfig = match serde_json::from_str(unsafe { cstr_to_str(config_json) }) {
-        Ok(c) => c,
-        Err(e) => {
-            set_error(error_msg, &format!("invalid config JSON: {}", e));
-            return 0;
-        }
-    };
-
-    let handle = engine.create_sfu_session(config);
-    handle.0
-}
-
-/// Connect an SFU session to the LiveKit server.
-///
-/// Returns 0 on success, -1 on error.
-#[no_mangle]
-pub extern "C" fn swc_sfu_connect(
-    engine: *mut WebRtcEngine,
-    handle: u64,
-    error_msg: *mut *mut c_char,
-) -> i32 {
-    if engine.is_null() {
-        return set_error(error_msg, "engine is null");
-    }
-    let engine = unsafe { &mut *engine };
-    let sh = crate::SfuHandle(handle);
-
-    match engine.connect_sfu(sh) {
-        Ok(()) => 0,
-        Err(e) => set_error(error_msg, &e.to_string()),
-    }
-}
-
-/// Disconnect an SFU session.
-#[no_mangle]
-pub extern "C" fn swc_sfu_disconnect(engine: *mut WebRtcEngine, handle: u64) {
-    if engine.is_null() {
-        return;
-    }
-    let engine = unsafe { &mut *engine };
-    engine.disconnect_sfu(crate::SfuHandle(handle));
-}
-
-/// Close (destroy) an SFU session.
-#[no_mangle]
-pub extern "C" fn swc_sfu_close(engine: *mut WebRtcEngine, handle: u64) {
-    if engine.is_null() {
-        return;
-    }
-    let engine = unsafe { &mut *engine };
-    engine.close_sfu(crate::SfuHandle(handle));
-}
-
-/// Check if SFU is available (at least one session connected).
-///
-/// Returns 1 if available, 0 otherwise.
-#[no_mangle]
-pub extern "C" fn swc_sfu_is_available(engine: *const WebRtcEngine) -> i32 {
-    if engine.is_null() {
-        return 0;
-    }
-    // SAFETY: caller guarantees engine is valid and we only read
-    let engine = unsafe { &*engine };
-    if engine.is_sfu_available() { 1 } else { 0 }
-}
-
-// ============================================================
 // Events
 // ============================================================
 
@@ -328,30 +242,6 @@ pub extern "C" fn swc_poll_events(engine: *mut WebRtcEngine) -> *mut c_char {
     CString::new(json)
         .unwrap_or_else(|_| CString::new("[]").unwrap())
         .into_raw()
-}
-
-// ============================================================
-// Router
-// ============================================================
-
-/// Resolve the transport mode for a given call scenario.
-///
-/// Returns:
-/// - `0` → P2P
-/// - `1` → SFU
-#[no_mangle]
-pub extern "C" fn swc_router_resolve(
-    local_ward: *const c_char,
-    target_ward: *const c_char,
-    is_broadcast: i32,
-) -> i32 {
-    let local = unsafe { cstr_to_str(local_ward) };
-    let target = unsafe { cstr_to_str(target_ward) };
-    let mode = crate::SessionRouter::resolve(local, target, is_broadcast != 0);
-    match mode {
-        crate::TransportMode::P2P => 0,
-        crate::TransportMode::SFU => 1,
-    }
 }
 
 // ============================================================

@@ -1,7 +1,7 @@
-﻿//! SmartWard Call — 纯 WebRTC 客户端引擎
+﻿//! SmartWard Call — 纯 WebRTC P2P 客户端引擎
 //!
 //! 为 SmartWard 客户端设备 (Android Pad / OHOS 床头屏等) 提供
-//! P2P WebRTC 和 SFU LiveKit 双模音视频通信能力。
+//! P2P WebRTC 音视频通信能力。
 //!
 //! # 架构
 //!
@@ -14,22 +14,17 @@
 //!        │ FFI: push SDP/ICE in, get events out
 //!        ▼
 //! WebRtcEngine (本 crate)
-//!   ├── P2pManager  → PeerConnection 直连
-//!   ├── SfuManager  → LiveKit SFU
-//!   └── SessionRouter → 纯决策函数
+//!   └── P2pManager  → PeerConnection 直连
 //! ```
 //!
 //! # 用法
 //!
 //! ```ignore
-//! use smartward_call::*;
+//! use p2p::*;
 //!
 //! let mut engine = WebRtcEngine::new();
 //!
 //! // ── 科内 P2P 呼叫 ──
-//! let mode = SessionRouter::resolve("wardA", "wardA", false);
-//! // mode == TransportMode::P2P
-//!
 //! let handle = engine.create_p2p_connection(&P2pConfig::default());
 //! let offer = engine.create_offer(handle).unwrap();
 //! // → 上层通过 MQTT 发送 offer SDP 给目标设备
@@ -49,32 +44,16 @@
 //!         _ => {}
 //!     }
 //! }
-//!
-//! // ── 跨科室 SFU 呼叫 ──
-//! let mode = SessionRouter::resolve("wardA", "wardB", false);
-//! // mode == TransportMode::SFU
-//!
-//! let sfu_handle = engine.create_sfu_session(SfuConfig {
-//!     url: "ws://livekit-server:7880".into(),
-//!     room_name: "consult-wardA-wardB".into(),
-//!     participant_identity: "nurse-ns001".into(),
-//!     token: "livekit-jwt-token".into(),
-//! });
-//! engine.connect_sfu(sfu_handle).unwrap();
 //! ```
 
 mod types;
 mod p2p;
-mod sfu;
-mod router;
 mod ffi;
 
 pub use types::*;
-pub use router::SessionRouter;
 pub use libwebrtc::audio_track::RtcAudioTrack;
 
 use p2p::P2pManager;
-use sfu::SfuManager;
 
 // ============================================================
 // 公共辅助
@@ -86,7 +65,7 @@ pub(crate) fn block_on<F: std::future::Future>(f: F) -> F::Output {
         Ok(handle) => handle.block_on(f),
         Err(_) => {
             let rt = tokio::runtime::Runtime::new()
-                .expect("failed to create tokio runtime for smartward-call");
+                .expect("failed to create tokio runtime for p2p");
             rt.block_on(f)
         }
     }
@@ -98,11 +77,10 @@ pub(crate) fn block_on<F: std::future::Future>(f: F) -> F::Output {
 
 /// SmartWard WebRTC 客户端引擎
 ///
-/// 统一管理 P2P PeerConnection 和 SFU LiveKit 会话。
+/// 管理 P2P PeerConnection 音视频通信。
 /// 所有方法均为同步、FFI 友好。
 pub struct WebRtcEngine {
     p2p: P2pManager,
-    sfu: SfuManager,
 }
 
 impl WebRtcEngine {
@@ -110,7 +88,6 @@ impl WebRtcEngine {
     pub fn new() -> Self {
         Self {
             p2p: P2pManager::new(),
-            sfu: SfuManager::new(),
         }
     }
 
@@ -205,53 +182,21 @@ impl WebRtcEngine {
     }
 
     // ============================================================
-    // SFU API
-    // ============================================================
-
-    /// 创建 SFU 会话，返回句柄
-    pub fn create_sfu_session(&mut self, config: SfuConfig) -> SfuHandle {
-        self.sfu.create_session(config)
-    }
-
-    /// 连接到 LiveKit 房间
-    pub fn connect_sfu(&mut self, handle: SfuHandle) -> Result<(), RtcError> {
-        self.sfu.connect(handle)
-    }
-
-    /// 断开 LiveKit 连接
-    pub fn disconnect_sfu(&mut self, handle: SfuHandle) {
-        self.sfu.disconnect(handle);
-    }
-
-    /// 关闭 SFU 会话
-    pub fn close_sfu(&mut self, handle: SfuHandle) {
-        self.sfu.close(handle);
-    }
-
-    /// SFU 是否已连接
-    pub fn is_sfu_available(&self) -> bool {
-        self.sfu.is_available()
-    }
-
-    // ============================================================
     // 事件
     // ============================================================
 
-    /// 轮询所有待处理事件（P2P + SFU），清空内部队列
+    /// 轮询所有待处理事件（P2P），清空内部队列
     pub fn poll_events(&mut self) -> Vec<EngineEvent> {
-        let mut events = self.p2p.drain_events();
-        events.append(&mut self.sfu.drain_events());
-        events
+        self.p2p.drain_events()
     }
 
     // ============================================================
     // 生命周期
     // ============================================================
 
-    /// 关闭所有连接和会话
+    /// 关闭所有连接
     pub fn shutdown(&mut self) {
         self.p2p.close_all();
-        self.sfu.close_all();
     }
 }
 
@@ -290,19 +235,6 @@ mod tests {
     }
 
     #[test]
-    fn test_sfu_connect_no_server() {
-        let mut engine = WebRtcEngine::new();
-        let h = engine.create_sfu_session(SfuConfig {
-            url: "ws://127.0.0.1:7880".into(),
-            room_name: "test-room".into(),
-            participant_identity: "test-user".into(),
-            token: "test-token".into(),
-        });
-        // 本地无 LiveKit 服务器，connect 应失败
-        assert!(engine.connect_sfu(h).is_err());
-    }
-
-    #[test]
     fn test_shutdown() {
         let mut engine = WebRtcEngine::new();
         let h = engine.create_p2p_connection(&P2pConfig::default());
@@ -323,4 +255,3 @@ mod tests {
         assert!(events2.is_empty());
     }
 }
-

@@ -25,23 +25,6 @@ impl From<u64> for PeerHandle {
     }
 }
 
-/// SFU 会话句柄
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SfuHandle(pub(crate) u64);
-
-impl SfuHandle {
-    /// Get the raw u64 value of this handle.
-    pub fn as_u64(self) -> u64 {
-        self.0
-    }
-}
-
-impl From<u64> for SfuHandle {
-    fn from(v: u64) -> Self {
-        SfuHandle(v)
-    }
-}
-
 // ============================================================
 // SDP 与会话描述
 // ============================================================
@@ -122,19 +105,6 @@ impl Default for P2pConfig {
     }
 }
 
-/// SFU 会话配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SfuConfig {
-    /// LiveKit 服务器地址 (如 "ws://10.0.0.1:7880")
-    pub url: String,
-    /// LiveKit 房间名
-    pub room_name: String,
-    /// 参与者标识
-    pub participant_identity: String,
-    /// LiveKit 访问令牌
-    pub token: String,
-}
-
 // ============================================================
 // 媒体
 // ============================================================
@@ -159,24 +129,6 @@ pub enum P2pState {
     Closed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum SfuState {
-    Disconnected,
-    Connecting,
-    Connected,
-    Failed,
-}
-
-// ============================================================
-// 传输模式
-// ============================================================
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TransportMode {
-    P2P,
-    SFU,
-}
-
 // ============================================================
 // 错误
 // ============================================================
@@ -194,9 +146,6 @@ pub enum RtcError {
 
     #[error("ICE error: {0}")]
     Ice(String),
-
-    #[error("SFU error: {0}")]
-    Sfu(String),
 
     #[error("internal error: {0}")]
     Internal(String),
@@ -228,31 +177,5 @@ pub enum EngineEvent {
         handle: PeerHandle,
         track_id: String,
         kind: MediaKind,
-    },
-
-    // ---- SFU 事件 ----
-
-    /// SFU 连接成功
-    SfuConnected {
-        handle: SfuHandle,
-        room_name: String,
-    },
-
-    /// SFU 断开
-    SfuDisconnected {
-        handle: SfuHandle,
-    },
-
-    /// SFU 房间内有新 track
-    SfuTrackSubscribed {
-        handle: SfuHandle,
-        participant_id: String,
-        kind: MediaKind,
-    },
-
-    /// SFU 错误
-    SfuError {
-        handle: SfuHandle,
-        message: String,
     },
 }
