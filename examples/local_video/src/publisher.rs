@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use livekit::e2ee::{key_provider::*, E2eeOptions, EncryptionType};
 use livekit::options::{
-    self, video as video_presets, PacketTrailerFeatures, TrackPublishOptions, VideoCodec,
+    self, video as video_presets, FrameMetadataFeatures, TrackPublishOptions, VideoCodec,
     VideoEncoderBackend, VideoEncoding, VideoPreset,
 };
 use livekit::prelude::*;
@@ -34,6 +34,7 @@ mod argus;
 mod codec_display;
 mod test_pattern;
 mod timestamp_burn;
+mod user_data;
 mod video_display;
 mod viewport_aspect;
 
@@ -238,6 +239,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     attach_timestamp: bool,
 
+    /// Enable dynacast (pause unused simulcast layers based on subscriber demand)
+    #[arg(long, default_value_t = false)]
+    dynacast: bool,
+
     /// Burn the attached timestamp into each video frame; does nothing unless --attach-timestamp is also enabled
     #[arg(long, default_value_t = false)]
     burn_timestamp: bool,
@@ -245,6 +250,13 @@ struct Args {
     /// Attach a monotonically increasing frame ID to each published frame via the packet trailer
     #[arg(long, default_value_t = false)]
     attach_frame_id: bool,
+
+    /// Attach keyboard-controlled 6-channel data (6x int16 fixed-point, 12 bytes)
+    /// as the per-frame user_data trailer field. Control the channels from the
+    /// preview window: Q/A=CH1, W/S=CH2, E/D=CH3, R/F=CH4, T/G=CH5, Y/H=CH6.
+    /// Requires --display-video (the window provides keyboard focus).
+    #[arg(long, default_value_t = false, requires = "display_video")]
+    attach_user_data: bool,
 
     /// Open a window that displays the video frames being published
     #[arg(long, default_value_t = false)]
@@ -924,8 +936,8 @@ async fn run(args: Args, ctrl_c_received: Arc<AtomicBool>) -> Result<()> {
 
     info!("Connecting to LiveKit room '{}' as '{}'...", args.room_name, args.identity);
     let mut room_options = RoomOptions::default();
-    room_options.auto_subscribe = false;
-    room_options.dynacast = true;
+    room_options.auto_subscribe = true;
+    room_options.dynacast = args.dynacast;
 
     // Configure E2EE if an encryption key is provided
     if let Some(ref e2ee_key) = args.e2ee_key {
@@ -1174,16 +1186,17 @@ async fn run(args: Args, ctrl_c_received: Arc<AtomicBool>) -> Result<()> {
         );
     }
 
-    let mut packet_trailer_features = PacketTrailerFeatures::default();
-    packet_trailer_features.user_timestamp = args.attach_timestamp;
-    packet_trailer_features.frame_id = args.attach_frame_id;
+    let mut frame_metadata_features = FrameMetadataFeatures::default();
+    frame_metadata_features.user_timestamp = args.attach_timestamp;
+    frame_metadata_features.frame_id = args.attach_frame_id;
+    frame_metadata_features.user_data = args.attach_user_data;
 
     let publish_opts = |codec: VideoCodec| TrackPublishOptions {
         source: TrackSource::Camera,
         simulcast: args.simulcast,
         video_codec: codec,
         video_encoder: requested_encoder,
-        packet_trailer_features,
+        frame_metadata_features,
         video_encoding: Some(main_encoding.clone()),
         simulcast_layers: args.simulcast.then(|| simulcast_presets.clone()),
         ..Default::default()
@@ -1218,6 +1231,11 @@ async fn run(args: Args, ctrl_c_received: Arc<AtomicBool>) -> Result<()> {
         display_timing: args.display_timing,
     };
 
+    // Shared keyboard-controlled channel values, written by the preview window
+    // and read by the capture loop to fill the user_data trailer.
+    let user_data_channels =
+        args.attach_user_data.then(|| Arc::new(Mutex::new([0.0f32; user_data::NUM_CHANNELS])));
+
     let publish_stats_task =
         tokio::spawn(update_publisher_video_stats(track.clone(), ctrl_c_received.clone()));
 
@@ -1231,6 +1249,7 @@ async fn run(args: Args, ctrl_c_received: Arc<AtomicBool>) -> Result<()> {
                 session,
                 width,
                 height,
+                user_data_channels.clone(),
             )
             .await;
             let _ = publish_stats_task.await;
@@ -1253,12 +1272,14 @@ async fn run(args: Args, ctrl_c_received: Arc<AtomicBool>) -> Result<()> {
                 let capture_task = tokio::spawn(run_capture_loop(
                     capture_config,
                     ctrl_c_received.clone(),
+                    track.clone(),
                     rtc_source,
                     video_input,
                     width,
                     height,
                     Some(shared.clone()),
                     publish_timing_state.clone(),
+                    user_data_channels.clone(),
                 ));
 
                 let display_result = video_display::run_display(
@@ -1266,6 +1287,7 @@ async fn run(args: Args, ctrl_c_received: Arc<AtomicBool>) -> Result<()> {
                     shared,
                     ctrl_c_received.clone(),
                     Some(width as f32 / height as f32),
+                    user_data_channels.clone(),
                 );
 
                 let capture_result = capture_task.await?;
@@ -1277,12 +1299,14 @@ async fn run(args: Args, ctrl_c_received: Arc<AtomicBool>) -> Result<()> {
                 let capture_result = run_capture_loop(
                     capture_config,
                     ctrl_c_received,
+                    track,
                     rtc_source,
                     video_input,
                     width,
                     height,
                     None,
                     publish_timing_state.clone(),
+                    user_data_channels.clone(),
                 )
                 .await;
                 let _ = publish_stats_task.await;
@@ -1297,12 +1321,14 @@ async fn run(args: Args, ctrl_c_received: Arc<AtomicBool>) -> Result<()> {
 async fn run_capture_loop(
     config: CaptureConfig,
     ctrl_c_received: Arc<AtomicBool>,
+    track: LocalVideoTrack,
     rtc_source: NativeVideoSource,
     mut video_input: VideoInput,
     width: u32,
     height: u32,
     display_shared: Option<Arc<Mutex<SharedYuv>>>,
     publish_timing_state: Option<Arc<Mutex<PublisherTimingState>>>,
+    user_data_channels: Option<Arc<Mutex<[f32; user_data::NUM_CHANNELS]>>>,
 ) -> Result<()> {
     // Pace publishing at the requested FPS (not the camera-reported FPS) to hit desired cadence
     let pace_fps = config.fps as f64;
@@ -1566,8 +1592,10 @@ async fn run_capture_loop(
         if burned_timestamp_us.is_some() {
             debug_assert_eq!(burned_timestamp_us, Some(capture_wall_time_us));
         }
-        frame.frame_metadata = if user_ts.is_some() || fid.is_some() {
-            Some(FrameMetadata { user_timestamp: user_ts, frame_id: fid })
+        let user_data =
+            user_data_channels.as_ref().map(|targets| user_data::encode(&targets.lock()));
+        frame.frame_metadata = if user_ts.is_some() || fid.is_some() || user_data.is_some() {
+            Some(FrameMetadata { user_timestamp: user_ts, frame_id: fid, user_data })
         } else {
             None
         };
@@ -1646,11 +1674,29 @@ async fn run_capture_loop(
         if last_fps_log.elapsed() >= std::time::Duration::from_secs(2) {
             let secs = last_fps_log.elapsed().as_secs_f64();
             let fps_est = frames as f64 / secs;
+            let layers = track.publishing_layers();
+            let layers_str = if layers.is_empty() {
+                "n/a".to_string()
+            } else {
+                layers
+                    .iter()
+                    .map(|layer| {
+                        format!(
+                            "{}({})={}",
+                            layer.rid,
+                            layer.quality,
+                            if layer.active { "on" } else { "off" }
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
             info!(
-                "Video status: {}x{} | ~{:.1} fps | target {:.2} ms",
+                "Video status: {}x{} | ~{:.1} fps | layers: [{}] | target {:.2} ms",
                 width,
                 height,
                 fps_est,
+                layers_str,
                 target.as_secs_f64() * 1000.0,
             );
             info!("{}", format_timing_line(&timings));
@@ -1677,6 +1723,7 @@ async fn run_argus_capture_loop(
     session: argus::ArgusCaptureSession,
     width: u32,
     height: u32,
+    user_data_channels: Option<Arc<Mutex<[f32; user_data::NUM_CHANNELS]>>>,
 ) -> Result<()> {
     let capture_handle = std::thread::Builder::new()
         .name("mipi-capture".into())
@@ -1793,8 +1840,10 @@ async fn run_argus_capture_loop(
                 } else {
                     None
                 };
-                let frame_metadata = if user_ts.is_some() || fid.is_some() {
-                    Some(FrameMetadata { user_timestamp: user_ts, frame_id: fid })
+                let user_data =
+                    user_data_channels.as_ref().map(|targets| user_data::encode(&targets.lock()));
+                let frame_metadata = if user_ts.is_some() || fid.is_some() || user_data.is_some() {
+                    Some(FrameMetadata { user_timestamp: user_ts, frame_id: fid, user_data })
                 } else {
                     None
                 };
