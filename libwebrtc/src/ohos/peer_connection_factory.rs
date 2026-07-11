@@ -66,6 +66,15 @@ pub struct PeerConnectionFactory {
 }
 
 impl PeerConnectionFactory {
+    /// Stub: OHOS does not implement zero-playout-delay mode through field trials.
+    pub fn with_zero_playout_delay() -> Self {
+        Self::default()
+    }
+
+    pub fn zero_playout_delay_enabled(&self) -> bool {
+        false
+    }
+
     pub fn create_peer_connection(
         &self,
         config: RtcConfiguration,
@@ -424,7 +433,20 @@ impl PeerConnectionFactory {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/// User-provided local IP address, set by the host application (e.g. ArkTS)
+/// when the device IP is known externally. Takes priority over `resolve_local_ip()`.
+static USER_LOCAL_IP: std::sync::OnceLock<std::net::IpAddr> = std::sync::OnceLock::new();
+
+/// Set the local IP address to be used for ICE host candidates.
+/// Call this once during initialization with the device's actual network IP.
+pub fn set_user_local_ip(ip: std::net::IpAddr) {
+    let _ = USER_LOCAL_IP.set(ip);
+}
+
 /// Resolve the device's actual network-facing IPv4 address.
+///
+/// First checks the user-provided IP set via [`set_user_local_ip`].
+/// Falls back to the connected-UDP-socket trick if not set.
 ///
 /// Binding a UDP socket to `0.0.0.0:0` gives us an ephemeral port but
 /// `local_addr().ip()` returns `0.0.0.0`, which is unusable in ICE host
@@ -437,9 +459,13 @@ impl PeerConnectionFactory {
 /// Falls back to `None` if no network interface is configured, in which
 /// case the caller should use the bound address as-is.
 fn resolve_local_ip() -> Option<std::net::IpAddr> {
-    // Try the connected-socket trick with a public DNS server.
-    // This works even without internet access because UDP `connect()`
-    // merely resolves the local route; no packets leave the host.
+    // 1. Check user-provided IP (from ArkTS via set_user_local_ip).
+    if let Some(ip) = USER_LOCAL_IP.get() {
+        if ip.is_ipv4() && !ip.is_unspecified() && !ip.is_loopback() {
+            return Some(*ip);
+        }
+    }
+    // 2. Try the connected-socket trick with common gateway/DNS addresses.
     for probe in &["8.8.8.8:53", "1.1.1.1:53", "192.168.1.1:53"] {
         if let Ok(sock) = std::net::UdpSocket::bind("0.0.0.0:0") {
             if sock.connect(probe).is_ok() {

@@ -96,7 +96,7 @@ pub(crate) mod internal {
     use super::{I420Buffer, VideoFormatType};
 
     pub trait BufferSealed: Send + Sync {
-        #[cfg(all(not(target_arch = "wasm32"), not(target_env = "ohos")))]
+        #[cfg(all(not(target_arch = "wasm32"), not(any(target_env = "ohos", target_os = "android"))))]
         fn sys_handle(&self) -> &webrtc_sys::video_frame_buffer::ffi::VideoFrameBuffer;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -156,7 +156,7 @@ macro_rules! new_buffer_type {
         }
 
         impl $crate::video_frame::internal::BufferSealed for $type {
-            #[cfg(all(not(target_arch = "wasm32"), not(target_env = "ohos")))]
+            #[cfg(all(not(target_arch = "wasm32"), not(any(target_env = "ohos", target_os = "android"))))]
             fn sys_handle(&self) -> &webrtc_sys::video_frame_buffer::ffi::VideoFrameBuffer {
                 self.handle.sys_handle()
             }

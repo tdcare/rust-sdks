@@ -26,7 +26,7 @@ pub enum MediaStreamTrack {
     Audio(RtcAudioTrack),
 }
 
-#[cfg(all(not(target_arch = "wasm32"), not(target_env = "ohos")))]
+#[cfg(all(not(target_arch = "wasm32"), not(any(target_env = "ohos", target_os = "android"))))]
 impl MediaStreamTrack {
     enum_dispatch!(
         [Video, Audio];
@@ -62,7 +62,7 @@ macro_rules! media_stream_track {
             self.handle.state().into()
         }
 
-        #[cfg(all(not(target_arch = "wasm32"), not(target_env = "ohos")))]
+        #[cfg(all(not(target_arch = "wasm32"), not(any(target_env = "ohos", target_os = "android"))))]
         pub(crate) fn sys_handle(
             &self,
         ) -> cxx::SharedPtr<webrtc_sys::media_stream::ffi::MediaStreamTrack> {

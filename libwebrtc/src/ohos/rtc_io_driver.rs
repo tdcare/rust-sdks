@@ -73,6 +73,7 @@ use rtc::shared::{TaggedBytesMut, TransportContext, TransportProtocol};
 
 // Public-facing types from the parent crate.
 use crate::data_channel::DataChannelInit;
+#[cfg(any(target_env = "ohos", target_os = "android"))]
 use super::h264_encoder::H264Encoder;
 use crate::peer_connection::{
     AnswerOptions, IceCandidateError, IceConnectionState, IceGatheringState, OfferOptions,
@@ -916,11 +917,20 @@ impl RtcIoDriver {
                 codec: vp8_codec2,
                 ..Default::default()
             };
+            #[cfg(any(target_env = "ohos", target_os = "android"))]
+            {
             if H264Encoder::is_available() {
                 log::info!("do_add_track: H264 encoder available → H264 first in SDP");
                 vec![h264_enc, vp8_enc]
             } else {
                 log::info!("do_add_track: H264 encoder NOT available → VP8 first in SDP");
+                vec![vp8_enc, h264_enc]
+            }
+            }
+            #[cfg(not(any(target_env = "ohos", target_os = "android")))]
+            {
+                // No H264 HW encoder on non-OHOS/non-Android → VP8 first
+                log::info!("do_add_track: non-OHOS/non-Android target → VP8 first in SDP");
                 vec![vp8_enc, h264_enc]
             }
         } else {

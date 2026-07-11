@@ -15,8 +15,8 @@
 use thiserror::Error;
 
 #[cfg_attr(target_arch = "wasm32", path = "web/mod.rs")]
-#[cfg_attr(all(not(target_arch = "wasm32"), target_env = "ohos"), path = "ohos/mod.rs")]
-#[cfg_attr(all(not(target_arch = "wasm32"), not(target_env = "ohos")), path = "native/mod.rs")]
+#[cfg_attr(all(not(target_arch = "wasm32"), any(target_env = "ohos", target_os = "android")), path = "ohos/mod.rs")]
+#[cfg_attr(all(not(target_arch = "wasm32"), not(target_env = "ohos"), not(target_os = "android")), path = "native/mod.rs")]
 mod imp;
 
 mod enum_dispatch;
@@ -72,17 +72,17 @@ pub mod video_track;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native {
-    #[cfg(not(target_env = "ohos"))]
+    #[cfg(not(any(target_env = "ohos", target_os = "android")))]
     pub use webrtc_sys::webrtc::ffi::create_random_uuid;
 
-    /// Pure-Rust UUID-v4 substitute used on OHOS where libwebrtc's
+    /// Pure-Rust UUID-v4 substitute used on OHOS / Android where libwebrtc's
     /// `rtc::CreateRandomUuid` FFI is not available.
     ///
     /// The format matches RFC 4122 v4 textually; the entropy comes from
     /// the system clock rather than a CSPRNG. This is sufficient for the
     /// SDK's internal usage (track / SDP `cname` identifiers) without
-    /// pulling additional dependencies into the OHOS build.
-    #[cfg(target_env = "ohos")]
+    /// pulling additional dependencies into the OHOS/Android build.
+    #[cfg(any(target_env = "ohos", target_os = "android"))]
     pub fn create_random_uuid() -> String {
         use std::time::SystemTime;
         let now = SystemTime::now()
@@ -105,7 +105,24 @@ pub mod native {
     };
 }
 
-#[cfg(target_os = "android")]
+// Android's webrtc-sys initialization module is only available with the
+// native (webrtc-sys) backend. When using webrtc-rs/rtc (ohos backend),
+// Android-specific JNI init is handled at the application layer.
+#[cfg(all(
+    target_os = "android",
+    not(target_env = "ohos"),
+    not(target_os = "android") // disabled: Android now uses ohos backend
+))]
 pub mod android {
     pub use crate::imp::android::*;
+}
+
+/// Set the local IP address for ICE host candidates (OHOS-specific).
+///
+/// On OHOS, binding to `0.0.0.0` returns `0.0.0.0` as the local address,
+/// which is unusable for ICE. Call this during initialization with the
+/// device's actual network IP obtained from the OHOS system API.
+#[cfg(target_env = "ohos")]
+pub fn set_ice_local_ip(ip: std::net::IpAddr) {
+    crate::imp::peer_connection_factory::set_user_local_ip(ip);
 }

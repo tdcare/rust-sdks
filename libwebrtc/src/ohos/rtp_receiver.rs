@@ -42,7 +42,12 @@ impl RtpReceiver {
             parameters: Arc::new(Mutex::new(RtpParameters {
                 codecs: Vec::new(),
                 header_extensions: Vec::new(),
+                encodings: Vec::new(),
                 rtcp: RtcpParameters::default(),
+                transaction_id: String::new(),
+                mid: String::new(),
+                has_degradation_preference: false,
+                degradation_preference: 0,
             })),
         }
     }

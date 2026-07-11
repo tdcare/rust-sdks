@@ -31,6 +31,7 @@ use crate::{
 
 use super::packet_trailer::PacketTrailerHandler;
 use super::rtp_send_pipeline::RtpSendPipeline;
+#[cfg(any(target_env = "ohos", target_os = "android"))]
 use super::h264_encoder::H264Encoder;
 use super::vp8_encoder::Vp8Encoder;
 
@@ -107,6 +108,7 @@ fn rotate_i420_90_ccw(src_y: &[u8], src_u: &[u8], src_v: &[u8], w: u32, h: u32) 
 
 /// Wraps either an H.264 hardware encoder or a VP8 software encoder.
 enum VideoEncoder {
+    #[cfg(any(target_env = "ohos", target_os = "android"))]
     H264(H264Encoder),
     Vp8(Vp8Encoder),
 }
@@ -114,6 +116,7 @@ enum VideoEncoder {
 impl VideoEncoder {
     fn encode(&mut self, i420: &[u8], ts: i64) -> Result<Option<(Vec<u8>, bool)>, RtcError> {
         match self {
+            #[cfg(any(target_env = "ohos", target_os = "android"))]
             Self::H264(e) => e.encode(i420, ts),
             Self::Vp8(e) => e.encode(i420, ts),
         }
@@ -121,6 +124,7 @@ impl VideoEncoder {
 
     fn codec_name(&self) -> &'static str {
         match self {
+            #[cfg(any(target_env = "ohos", target_os = "android"))]
             Self::H264(_) => "H264",
             Self::Vp8(_) => "VP8",
         }
@@ -415,7 +419,7 @@ impl NativeVideoSource {
         }
 
         if let (Some(meta), Some(handler)) =
-            (frame.frame_metadata, self.packet_trailer_handler.lock().clone())
+            (frame.frame_metadata.clone(), self.packet_trailer_handler.lock().clone())
         {
             if let (Some(user_ts), Some(frame_id)) = (meta.user_timestamp, meta.frame_id) {
                 handler.store_frame_metadata(frame.timestamp_us, user_ts, frame_id);

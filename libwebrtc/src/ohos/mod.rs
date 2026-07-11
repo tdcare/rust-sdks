@@ -1,5 +1,5 @@
-//! OHOS platform WebRTC implementation
-//! Based on webrtc-rs/rtc pure Rust implementation with OH_AVCodec hardware codec integration.
+//! OHOS / Android platform WebRTC implementation
+//! Based on webrtc-rs/rtc pure Rust implementation with platform-specific hardware codec integration.
 
 use std::sync::atomic::AtomicBool;
 
@@ -39,6 +39,10 @@ pub mod rtp_packetizer;
 pub mod rtp_send_pipeline;
 pub mod opus_decoder;
 pub mod vp8_encoder;
+#[cfg(target_env = "ohos")]
+pub mod h264_encoder;
+#[cfg(all(target_os = "android", not(target_env = "ohos")))]
+#[path = "h264_encoder_android.rs"]
 pub mod h264_encoder;
 #[allow(non_camel_case_types, non_upper_case_globals, dead_code)]
 pub mod libvpx_ffi;

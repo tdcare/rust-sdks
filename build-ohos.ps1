@@ -39,14 +39,5 @@ foreach ($app in $apps) {
     Write-Host "  -> $app"
 }
 
-# Clean up stale libsmartward_call.so (now integrated into p2p crate, linked statically)
-foreach ($app in $apps) {
-    $stale = "$ohosDir\$app\entry\libs\arm64-v8a\libsmartward_call.so"
-    if (Test-Path $stale) {
-        Remove-Item $stale -Force
-        Write-Host "  Removed stale: $app/libsmartward_call.so"
-    }
-}
-
 Write-Host "`n===== Rust build complete =====" -ForegroundColor Green
 Write-Host "To build HAPs, run individual build scripts in each OHOS app."

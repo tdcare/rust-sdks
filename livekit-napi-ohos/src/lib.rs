@@ -123,7 +123,7 @@ pub mod audio_stream;
 pub mod video_stream;
 pub mod events;
 pub mod e2ee;
-pub mod smartward;
+pub mod p2p;
 pub mod data_track;
 pub mod stats;
 pub(crate) mod native_surface;

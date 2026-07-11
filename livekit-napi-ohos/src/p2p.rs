@@ -1,7 +1,10 @@
-//! ArkTS-facing wrapper around [`p2p::WebRtcEngine`].
+//! P2P WebRTC engine — ArkTS-facing NAPI wrapper around [`p2p::WebRtcEngine`].
 //!
-//! Exposes the SmartWard call engine to ArkTS via napi-ohos.
+//! Exposes the SmartWard P2P call engine to ArkTS via napi-ohos.
 //! All complex types cross the boundary as JSON strings.
+//!
+//! This module only handles P2P (PeerConnection) functionality.
+//! SFU (LiveKit) is handled by the `livekit` crate through `LkRoom`. 
 
 use std::sync::Arc;
 
@@ -26,6 +29,30 @@ fn map_err(e: p2p::RtcError) -> Error {
 
 fn json_err(e: impl std::fmt::Display) -> Error {
     Error::from_reason(format!("JSON error: {}", e))
+}
+
+// ============================================================
+// Standalone ICE helper (not tied to LkSwcEngine)
+// ============================================================
+
+/// 设置 ICE host candidate 使用的本地 IP 地址（全局生效）。
+///
+/// OHOS 上 UDP socket bind 到 0.0.0.0 后 local_addr 也返回 0.0.0.0，
+/// 导致 ICE 候选不可用。必须在创建任何 PeerConnection（P2P 或 SFU）之前调用。
+///
+/// ArkTS 用法:
+/// ```typescript
+/// import { setIceLocalIp } from 'liblivekit.so';
+/// setIceLocalIp('192.168.52.161');
+/// ```
+#[napi]
+pub fn set_ice_local_ip(ip: String) -> Result<()> {
+    let addr: std::net::IpAddr = ip.parse().map_err(|e| {
+        Error::from_reason(format!("invalid IP address '{}': {}", ip, e))
+    })?;
+    libwebrtc::set_ice_local_ip(addr);
+    log::info!("[NAPI] set_ice_local_ip (global): {}", ip);
+    Ok(())
 }
 
 // ============================================================
@@ -64,6 +91,22 @@ impl LkSwcEngine {
             runtime: Arc::new(runtime),
             inner: Mutex::new(WebRtcEngine::new()),
         })
+    }
+
+    /// 设置 ICE host candidate 使用的本地 IP 地址。
+    ///
+    /// OHOS 上 UDP socket bind 到 0.0.0.0 后 local_addr 也返回 0.0.0.0，
+    /// 导致 ICE 候选不可用。ArkTS 层通过 @ohos.net.connection 获取真实 IP 后传入。
+    ///
+    /// 必须在创建任何 PeerConnection 之前调用，否则已创建的连接仍使用旧地址。
+    #[napi]
+    pub fn set_ice_local_ip(&self, ip: String) -> Result<()> {
+        let addr: std::net::IpAddr = ip.parse().map_err(|e| {
+            Error::from_reason(format!("invalid IP address '{}': {}", ip, e))
+        })?;
+        libwebrtc::set_ice_local_ip(addr);
+        log::info!("[NAPI] set_ice_local_ip: {}", ip);
+        Ok(())
     }
 
     // ============================================================
