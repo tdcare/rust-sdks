@@ -288,14 +288,21 @@ where
 ///
 /// - [RFC 8852](https://datatracker.ietf.org/doc/html/rfc8852) - RTP Stream Identifier Source Description Extensions
 pub fn configure_simulcast_extension_headers(media_engine: &mut MediaEngine) -> Result<()> {
-    media_engine.register_header_extension(
-        RTCRtpHeaderExtensionCapability {
-            uri: ::sdp::extmap::SDES_MID_URI.to_owned(),
-        },
-        RtpCodecKind::Video,
-        None,
-    )?;
+    // Register for both Audio and Video — the LiveKit SFU requires the MID RTP
+    // header extension on all tracks to map incoming RTP packets to SDP media
+    // sections. Without it, "Incoming unhandled RTP ssrc" errors occur and
+    // track publication times out.
+    for kind in [RtpCodecKind::Audio, RtpCodecKind::Video] {
+        media_engine.register_header_extension(
+            RTCRtpHeaderExtensionCapability {
+                uri: ::sdp::extmap::SDES_MID_URI.to_owned(),
+            },
+            kind,
+            None,
+        )?;
+    }
 
+    // RID and RRID are only needed for Video simulcast
     media_engine.register_header_extension(
         RTCRtpHeaderExtensionCapability {
             uri: ::sdp::extmap::SDES_RTP_STREAM_ID_URI.to_owned(),
