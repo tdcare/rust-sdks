@@ -567,6 +567,8 @@ pub struct SoftwareVP8Decoder {
     /// 解码失败计数（用于限制日志输出）
     decode_error_count: u32,
     dec_output_scratch: Vec<u8>,
+    /// 成功解码帧计数（用于诊断日志）
+    decode_ok_count: u64,
 }
 
 unsafe impl Send for SoftwareVP8Decoder {}
@@ -591,6 +593,7 @@ impl SoftwareVP8Decoder {
             is_initialized: AtomicBool::new(false),
             decode_error_count: 0,
             dec_output_scratch: Vec::new(),
+            decode_ok_count: 0,
         }
     }
     
@@ -607,10 +610,12 @@ impl SoftwareVP8Decoder {
             }
             
             // 创建解码器配置
+            // w=0, h=0 让 libvpx 从码流中自动检测分辨率，避免预分配缓冲区
+            // 大小与实际视频不匹配导致的解码错误。
             let cfg = vpx_codec_dec_cfg_t {
                 threads: 1,
-                w: self.config.width,
-                h: self.config.height,
+                w: 0,  // auto-detect from bitstream
+                h: 0,  // auto-detect from bitstream
             };
             
             // 初始化解码器
@@ -741,6 +746,30 @@ impl SoftwareVP8Decoder {
                     height,
                     timestamp_us,
                 });
+
+                self.decode_ok_count += 1;
+                // 诊断日志: 每 30 帧或前 5 帧输出详细信息
+                if self.decode_ok_count <= 5
+                    || self.decode_ok_count % 30 == 0
+                {
+                    let y_xor = self.dec_output_scratch[..y_size]
+                        .iter()
+                        .fold(0u8, |acc, b| acc ^ b);
+                    let u_xor = self.dec_output_scratch[y_size..y_size + u_size]
+                        .iter()
+                        .fold(0u8, |acc, b| acc ^ b);
+                    let v_xor = self.dec_output_scratch[y_size + u_size..y_size + u_size + v_size]
+                        .iter()
+                        .fold(0u8, |acc, b| acc ^ b);
+                    let is_keyframe = (vp8_data[0] & 0x01) == 0;
+                    log::info!(
+                        "[SW-VP8Dec] frame#{} ok: {}x{}, y_stride={}, u_stride={}, v_stride={}, \
+                         data={}B, y_xor={:02x}, u_xor={:02x}, v_xor={:02x}, kf={}",
+                        self.decode_ok_count, width, height,
+                        y_stride, u_stride, v_stride,
+                        vp8_data.len(), y_xor, u_xor, v_xor, is_keyframe,
+                    );
+                }
                 
                 log::debug!("[SW-VP8Dec] 解码输出: {}x{}, {} bytes", width, height, total_size);
             }

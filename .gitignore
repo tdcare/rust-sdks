@@ -1,7 +1,22 @@
 target
 /.idea
-soxr-sys/test-input.wav
-soxr-sys/test-output.wav
 .DS_Store
 .env
 .cursor
+
+# 二进制文件
+*.so
+*.a
+
+# 构建产物 / 依赖
+**/dist/
+**/build/
+**/oh_modules/
+
+# 测试资源
+soxr-sys/test-input.wav
+soxr-sys/test-output.wav
+
+# 调试日志 / 临时文件
+dev_log*.txt
+temp/

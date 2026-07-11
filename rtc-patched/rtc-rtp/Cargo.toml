@@ -1,0 +1,28 @@
+[package]
+name = "rtc-rtp"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "RTC RTP in Rust"
+license.workspace = true
+documentation = "https://docs.rs/rtc-rtp"
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+shared = { workspace = true, default-features = false, features = ["marshal"] }
+
+bytes.workspace = true
+rand.workspace = true
+serde.workspace = true
+memchr = "2.1.1"
+
+[dev-dependencies]
+chrono.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "bench"
+harness = false

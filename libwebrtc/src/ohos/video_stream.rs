@@ -86,6 +86,10 @@ struct Vp8FrameAssembler {
     assembling: bool,
     /// Timestamp of the current frame (set from the first fragment).
     _current_ts: u32,
+    /// After an RTP sequence gap, skip non-S-bit packets until the next
+    /// start-of-partition marker to avoid feeding mid-frame fragments to
+    /// the decoder as complete frames.
+    skip_until_s: bool,
 }
 
 impl Default for Vp8FrameAssembler {
@@ -95,11 +99,20 @@ impl Default for Vp8FrameAssembler {
             buffer: Vec::new(),
             assembling: false,
             _current_ts: 0,
+            skip_until_s: false,
         }
     }
 }
 
 impl Vp8FrameAssembler {
+    /// Reset the assembler state (called on RTP sequence gaps to avoid
+    /// feeding corrupted partial frames to the decoder).
+    fn reset(&mut self) {
+        self.buffer.clear();
+        self.assembling = false;
+        self.skip_until_s = true;
+    }
+
     /// Feed one RTP payload (already stripped of the RTP fixed header).
     /// Returns the complete assembled VP8 frame data when available, or
     /// empty `Bytes` when waiting for more fragments.
@@ -108,6 +121,19 @@ impl Vp8FrameAssembler {
         let frame_data = self.parser.depacketize(payload)?;
 
         let has_s_bit = !payload.is_empty() && (payload[0] & 0x10) != 0;
+
+        // After an RTP sequence gap, skip all packets until we see the
+        // start of a new partition.  Mid-frame fragments arriving after a
+        // gap would otherwise be treated as complete single-packet frames
+        // and fed to the decoder, corrupting the reference picture.
+        if self.skip_until_s {
+            if has_s_bit {
+                self.skip_until_s = false;
+            } else {
+                log::trace!("Vp8FrameAssembler: skipping packet (waiting for S-bit after gap)");
+                return Ok(Bytes::new());
+            }
+        }
 
         if has_s_bit {
             // Start of a new partition — flush any previously buffered data
@@ -385,15 +411,27 @@ impl NativeVideoStream {
 
         // Detect sequence-number gaps; we don't try to repair them here, the
         // depacketiser will simply discard partially-reassembled FU-A units.
+        // For VP8, we must explicitly reset the frame assembler to avoid
+        // feeding corrupted partial-frame data to the decoder, which would
+        // cause visual artifacts that propagate through P-frames until the
+        // next keyframe arrives.
         if let Some(last) = self.last_seq {
             let expected = last.wrapping_add(1);
             if pkt.sequence_number != expected {
                 log::warn!(
-                    "video RTP seq gap: {} -> {} (track {})",
+                    "video RTP seq gap: {} -> {} (track {}), resetting VP8 assembler",
                     last,
                     pkt.sequence_number,
                     pkt.track_id,
                 );
+                // Reset VP8 frame assembler — the missing packet likely
+                // contained a fragment of the current frame, so the
+                // accumulated buffer is now corrupt.  Waiting for the
+                // next S-bit (start-of-partition) packet is safer than
+                // feeding incomplete data to the decoder.
+                if let DepacketizerType::VP8(assembler) = &mut self.depacketizer {
+                    assembler.reset();
+                }
             }
         }
         self.last_seq = Some(pkt.sequence_number);

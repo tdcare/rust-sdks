@@ -1,0 +1,24 @@
+[package]
+name = "rtc-datachannel"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "RTC DataChannel in Rust"
+license.workspace = true
+documentation = "https://docs.rs/rtc-datachannel"
+homepage.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+shared = { workspace = true, default-features = false, features = ["marshal"] }
+sansio.workspace = true
+sctp.workspace = true
+
+bytes.workspace = true
+log.workspace = true
+
+[dev-dependencies]
+env_logger.workspace = true
+chrono.workspace = true

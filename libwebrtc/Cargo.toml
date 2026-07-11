@@ -54,6 +54,7 @@ opus = { workspace = true }
 soxr-sys = { workspace = true }
 aes-gcm = { workspace = true }
 sha2 = { workspace = true }
+sonora = "0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"

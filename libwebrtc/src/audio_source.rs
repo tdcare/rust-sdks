@@ -218,5 +218,15 @@ pub mod native {
         pub fn num_channels(&self) -> u32 {
             self.handle.num_channels()
         }
+
+        /// Enable software AEC (sonora WebRTC AEC3).
+        pub fn init_aec(&self) {
+            self.handle.init_aec()
+        }
+
+        /// Push far-end reference frame for AEC.
+        pub fn push_reference_frame(&self, data: &[i16]) {
+            self.handle.push_reference_frame(data)
+        }
     }
 }

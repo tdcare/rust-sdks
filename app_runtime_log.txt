@@ -1,0 +1,160 @@
+﻿
+06-05 23:44:28.876 62983 63242 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [libwebrtc::imp::software_vp8] [SW-VP8Dec] 解码输出: 12
+80x720, 1382400 bytes
+06-05 23:44:28.879 62983 63236 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:28.902 62983 63242 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [libwebrtc::imp::software_vp8] [SW-VP8Dec] 解码输出: 12
+80x720, 1382400 bytes
+06-05 23:44:28.904 62983 63242 I A03200/com.livekit.ohos.demo/L
+iveKitRust: [livekit_napi_ohos::video_stream] [LkVideoStream] v
+30: skipped 3 stale frames, rendering latest
+06-05 23:44:28.938 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 1228 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156
+)
+06-05 23:44:28.939 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 1228 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156
+)
+06-05 23:44:28.939 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 512 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:28.940 62983 63236 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:28.941 62983 64485 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:28.942 62983 63240 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:28.960 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:28.969 62983 63242 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [libwebrtc::imp::software_vp8] [SW-VP8Dec] 解码输出: 12
+80x720, 1382400 bytes
+06-05 23:44:29.026 62983 64485 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 835 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.033 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.034 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.034 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.037 62983 64485 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.089 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [libwebrtc::imp::software_vp8] [SW-VP8Dec] 解码输出: 12
+80x720, 1382400 bytes
+06-05 23:44:29.103 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 1228 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156
+)
+06-05 23:44:29.103 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 200 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.104 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.106 62983 63240 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.107 62983 63242 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.120 62983 64485 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.189 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [libwebrtc::imp::software_vp8] [SW-VP8Dec] 解码输出: 12
+80x720, 1382400 bytes
+06-05 23:44:29.190 62983 63240 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 1228 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156
+)
+06-05 23:44:29.191 62983 63240 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 1228 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156
+)
+06-05 23:44:29.191 62983 63240 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 810 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.200 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.201 62983 64485 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.203 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.204 62983 63236 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.235 62983 63240 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [libwebrtc::imp::software_vp8] [SW-VP8Dec] 解码输出: 12
+80x720, 1382400 bytes
+06-05 23:44:29.247 62983 64491 W A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler] SrtpHandler.handle_
+read got error: Packet too short to be read
+06-05 23:44:29.264 62983 63240 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [libwebrtc::imp::software_vp8] [SW-VP8Dec] 解码输出: 12
+80x720, 1382400 bytes
+06-05 23:44:29.265 62983 64485 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 1228 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156
+)
+06-05 23:44:29.265 62983 64485 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 72 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.266 62983 64485 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 188 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.271 62983 64485 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 178 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.273 62983 63242 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 164 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.279 62983 63242 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 161 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.301 62983 63240 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [libwebrtc::imp::software_vp8] [SW-VP8Dec] 解码输出: 12
+80x720, 1382400 bytes
+06-05 23:44:29.302 62983 63240 I A03200/com.livekit.ohos.demo/L
+iveKitRust: [livekit_napi_ohos::video_stream] [LkVideoStream] v
+30: skipped 2 stale frames, rendering latest
+06-05 23:44:29.346 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 1228 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156
+)
+06-05 23:44:29.346 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 110 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.348 62983 64491 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 153 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.359 62983 63242 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 152 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.360 62983 63242 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 167 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.362 62983 64485 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [rtc::peer_connection::handler::ice] ICE sending RT
+P packet: 189 bytes to 81.70.38.28:52570 (local: 0.0.0.0:49156)
+06-05 23:44:29.372 62983 63240 D A03200/com.livekit.ohos.demo/L
+iveKitRust: [libwebrtc::imp::software_vp8] [SW-VP8Dec] 解码输出: 12
+80x720, 1382400 bytes
+
+

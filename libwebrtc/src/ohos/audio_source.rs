@@ -72,6 +72,15 @@ struct EncoderState {
     timestamp_ms: u64,
     /// Number of consecutive RTP send failures.
     send_fail_count: u64,
+    /// --- sonora AEC (WebRTC AEC3 + NS + AGC) ---
+    /// Created lazily when echo_cancellation is enabled.
+    apm: Option<sonora::AudioProcessing>,
+    /// Far-end render reference buffer (speaker output i16 PCM).
+    render_buffer: VecDeque<i16>,
+    /// Accumulated 10ms AEC output before reassembly into 20ms Opus frames.
+    aec_output: Vec<i16>,
+    /// Stored AEC config for periodic filter reset.
+    aec_config: Option<sonora::Config>,
 }
 
 #[derive(Clone)]
@@ -109,6 +118,10 @@ impl NativeAudioSource {
                 encoded_chunks: Vec::with_capacity(MAX_OPUS_FRAME_BYTES * 4),
                 timestamp_ms: 0,
                 send_fail_count: 0,
+                apm: None,
+                render_buffer: VecDeque::with_capacity(9600),
+                aec_output: Vec::with_capacity(960),
+                aec_config: None,
             })),
             rtp_pipeline: Arc::new(Mutex::new(None)),
         }
@@ -306,8 +319,69 @@ impl NativeAudioSource {
         }
 
         {
-            let mut state = self.encoder_state.lock();
-            state.buffer.extend(frame.data.iter().copied());
+            const CHUNK_SAMPLES: usize = 480; // 10ms at 48kHz mono
+
+            // Take APM out of state to avoid borrow conflicts
+            let apm = {
+                let mut state = self.encoder_state.lock();
+                state.apm.take()
+            };
+
+            if let Some(mut apm) = apm {
+                let mut state = self.encoder_state.lock();
+                // Use a local borrow for the render buffer drain
+                let render_frames: Vec<Vec<i16>> = {
+                    let mut frames = Vec::new();
+                    while state.render_buffer.len() >= CHUNK_SAMPLES {
+                        frames.push(state.render_buffer.drain(..CHUNK_SAMPLES).collect());
+                    }
+                    frames
+                };
+                drop(state); // release lock before processing
+
+                // Feed render frames to APM
+                for ref_frame in &render_frames {
+                    let mut ref_out = vec![0i16; CHUNK_SAMPLES];
+                    if let Err(e) = apm.process_render_i16(ref_frame, &mut ref_out) {
+                        log::warn!("[NativeAudioSource] process_render_i16 error: {:?}", e);
+                    }
+                }
+
+                // Process capture through APM
+                let mut processed = Vec::with_capacity(frame.data.len());
+                for chunk in frame.data.chunks(CHUNK_SAMPLES) {
+                    let mut out = vec![0i16; chunk.len()];
+                    if let Err(e) = apm.process_capture_i16(chunk, &mut out) {
+                        log::warn!("[NativeAudioSource] process_capture_i16 error: {:?}, bypassing AEC", e);
+                        processed.extend_from_slice(chunk);
+                    } else {
+                        processed.extend_from_slice(&out[..chunk.len()]);
+                    }
+                }
+
+                // Push processed data to encoder buffer and put APM back
+                let mut state = self.encoder_state.lock();
+                // Periodic AEC diagnostic: every 50 frames, log ref availability and I/O levels
+                {
+                    static AEC_FRAME_COUNT: AtomicU64 = AtomicU64::new(0);
+                    let n = AEC_FRAME_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+                    if n % 200 == 0 {
+                        let ref_available = !state.render_buffer.is_empty();
+                        let in_max = frame.data.iter().map(|s| s.abs()).max().unwrap_or(0);
+                        let out_max = processed.iter().map(|s| s.abs()).max().unwrap_or(0);
+                        log::info!(
+                            "[NativeAudioSource] AEC frame #{}: ref_avail={}, ref_buf={}, in_max={}, out_max={}, render_frames_consumed={}",
+                            n, ref_available, state.render_buffer.len(), in_max, out_max, render_frames.len()
+                        );
+                    }
+                }
+                state.buffer.extend(processed);
+                state.apm = Some(apm);
+            } else {
+                // No AEC — pass through directly
+                let mut state = self.encoder_state.lock();
+                state.buffer.extend(frame.data.iter().copied());
+            }
         }
 
         self.encode_and_send();
@@ -317,6 +391,53 @@ impl NativeAudioSource {
 
     pub fn set_audio_options(&self, options: AudioSourceOptions) {
         *self.options.lock() = options;
+    }
+
+    /// Enable software AEC (sonora WebRTC AEC3).
+    /// Must be called before capture_frame to initialize the processing pipeline.
+    pub fn init_aec(&self) {
+        let mut state = self.encoder_state.lock();
+        if state.apm.is_some() {
+            return; // Already initialized
+        }
+        let config = sonora::Config {
+            echo_canceller: Some(sonora::config::EchoCanceller::default()),
+            noise_suppression: Some(sonora::config::NoiseSuppression::default()),
+            gain_controller2: Some(sonora::config::GainController2::default()),
+            ..Default::default()
+        };
+        let mut apm = sonora::AudioProcessing::builder()
+            .config(config.clone())
+            .capture_config(sonora::StreamConfig::new(self.sample_rate, self.num_channels as u16))
+            .render_config(sonora::StreamConfig::new(self.sample_rate, 1u16)) // render is mono
+            .build();
+        // Light delay hint (10ms) for faster initial convergence; AEC3 will auto-track drift
+        let _ = apm.set_stream_delay_ms(10);
+        // Attenuate overly sensitive mic (0.5x = -6dB) to prevent echo overload
+        apm.set_capture_pre_gain(0.5);
+        state.apm = Some(apm);
+        state.aec_config = Some(config);
+        log::info!("[NativeAudioSource] AEC initialized: sonora AEC3 + NS + AGC, {}Hz, {}ch",
+            self.sample_rate, self.num_channels);
+    }
+
+    /// Push far-end reference frame for AEC (speaker output audio).
+    /// Called from the render side to provide echo reference.
+    pub fn push_reference_frame(&self, data: &[i16]) {
+        let mut state = self.encoder_state.lock();
+        state.render_buffer.extend(data.iter().copied());
+        // Diagnostic: log first frame and every 100th
+        static REF_COUNT: AtomicU64 = AtomicU64::new(0);
+        let n = REF_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+        if n == 1 || n % 500 == 0 {
+            log::info!("[NativeAudioSource] push_reference_frame #{}: {} samples, head=[{},{}], total_buf={}",
+                n, data.len(), data.first().unwrap_or(&0), data.get(1).unwrap_or(&0), state.render_buffer.len());
+        }
+        // Keep buffer from growing unbounded (max ~500ms)
+        let max_samples = (self.sample_rate as usize) / 2;
+        while state.render_buffer.len() > max_samples {
+            state.render_buffer.pop_front();
+        }
     }
 
     pub fn audio_options(&self) -> AudioSourceOptions {

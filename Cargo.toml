@@ -12,7 +12,7 @@ members = [
     "livekit-wakeword",
     "livekit-napi-ohos",
     "libwebrtc",
-    "smartward-call",
+    "p2p",
     "soxr-sys",
     "yuv-sys",
     "imgproc",
@@ -129,7 +129,7 @@ cc = { version = "1.0", features = ["parallel"] }
 opt-level = "z"
 lto = true
 codegen-units = 1
-panic = "abort"
+panic = "unwind"
 strip = "symbols"
 debug = false
 

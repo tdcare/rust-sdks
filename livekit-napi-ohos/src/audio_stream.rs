@@ -164,3 +164,13 @@ impl LkAudioStream {
         });
     }
 }
+
+impl LkAudioStream {
+    /// Create an `LkAudioStream` from an already-constructed
+    /// [`NativeAudioStream`].  Used by the SmartWard P2P path where the
+    /// audio track originates from a native `RtcAudioTrack` (not a
+    /// LiveKit `RemoteAudioTrack`).
+    pub(crate) fn from_native(native: NativeAudioStream) -> Self {
+        Self { stream: Arc::new(Mutex::new(Some(native))) }
+    }
+}

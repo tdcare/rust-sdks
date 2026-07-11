@@ -201,6 +201,27 @@ impl PeerConnectionFactory {
             error_type: RtcErrorType::Internal,
             message: format!("failed to read UDP local_addr: {err}"),
         })?;
+
+        // Resolve the real local IP address for ICE host candidates.
+        // Binding to 0.0.0.0 gives us local_addr.ip() == 0.0.0.0, which
+        // the remote peer cannot connect to.  Use a connected UDP socket
+        // trick to ask the kernel which interface would be used to reach
+        // an external address; the returned IP is the device's actual
+        // network-facing address (e.g. 192.168.1.93).
+        let real_ip = resolve_local_ip().unwrap_or_else(|| {
+            log::warn!(
+                "peer_connection_factory: could not resolve local IP, \
+                 falling back to {}. ICE connectivity may be impaired.",
+                local_addr.ip()
+            );
+            local_addr.ip()
+        });
+        let local_addr_for_ice = SocketAddr::new(real_ip, local_addr.port());
+        log::info!(
+            "peer_connection_factory: bound UDP socket on {local_addr}, \
+             using {local_addr_for_ice} for ICE host candidates"
+        );
+
         let socket = Arc::new(UdpSocket::from_std(std_sock).map_err(|err| RtcError {
             error_type: RtcErrorType::Internal,
             message: format!("failed to register UDP socket with tokio: {err}"),
@@ -209,7 +230,7 @@ impl PeerConnectionFactory {
         // Wire up the channel pair and spawn the driver task.
         let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
-        let driver = RtcIoDriver::new(pc, socket, local_addr, cmd_rx, event_tx);
+        let driver = RtcIoDriver::new(pc, socket, local_addr_for_ice, cmd_rx, event_tx);
         livekit_runtime::spawn(driver.run());
 
         let peer_connection = ImpPeerConnection::new(config, cmd_tx);
@@ -402,6 +423,39 @@ impl PeerConnectionFactory {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/// Resolve the device's actual network-facing IPv4 address.
+///
+/// Binding a UDP socket to `0.0.0.0:0` gives us an ephemeral port but
+/// `local_addr().ip()` returns `0.0.0.0`, which is unusable in ICE host
+/// candidates.  This helper uses a connected-UDP-socket trick: it creates
+/// a temporary socket, calls `connect()` to a well-known external address
+/// (no packets are actually sent), then reads `local_addr()`.  The kernel
+/// resolves the route and returns the interface IP that would be used to
+/// reach that destination.
+///
+/// Falls back to `None` if no network interface is configured, in which
+/// case the caller should use the bound address as-is.
+fn resolve_local_ip() -> Option<std::net::IpAddr> {
+    // Try the connected-socket trick with a public DNS server.
+    // This works even without internet access because UDP `connect()`
+    // merely resolves the local route; no packets leave the host.
+    for probe in &["8.8.8.8:53", "1.1.1.1:53", "192.168.1.1:53"] {
+        if let Ok(sock) = std::net::UdpSocket::bind("0.0.0.0:0") {
+            if sock.connect(probe).is_ok() {
+                if let Ok(addr) = sock.local_addr() {
+                    let ip = addr.ip();
+                    // Only accept IPv4 — SDP declares "IN IP4" and IPv6
+                    // addresses in an IP4 field cause parse errors.
+                    if ip.is_ipv4() && !ip.is_unspecified() && !ip.is_loopback() {
+                        return Some(ip);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
 
 fn convert_ice_server(server: &IceServer) -> RTCIceServer {
     RTCIceServer {

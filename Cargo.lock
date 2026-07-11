@@ -61,7 +61,11 @@ checksum = "b169f7a6d4742236a0a00c541b845991d0ac43e546831af1249753ab4c3aa3a0"
 dependencies = [
  "cfg-if 1.0.4",
  "cipher",
+<<<<<<< HEAD
  "cpufeatures",
+=======
+ "cpufeatures 0.2.17",
+>>>>>>> master
 ]
 
 [[package]]
@@ -1260,7 +1264,11 @@ checksum = "c3613f74bd2eac03dad61bd53dbe620703d4371614fe0bc3b9f04dd36fe4e818"
 dependencies = [
  "cfg-if 1.0.4",
  "cipher",
+<<<<<<< HEAD
  "cpufeatures",
+=======
+ "cpufeatures 0.2.17",
+>>>>>>> master
 ]
 
 [[package]]
@@ -1688,6 +1696,18 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+=======
+name = "cpufeatures"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b2a41393f66f16b0823bb79094d54ac5fbd34ab292ddafb9a0456ac9f87d201"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+>>>>>>> master
 name = "crc"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1869,7 +1889,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fb8b7c4503de7d6ae7b42ab72a5a59857b4c937ec27a3d4539dba95b5ab2be"
 dependencies = [
  "cfg-if 1.0.4",
+<<<<<<< HEAD
  "cpufeatures",
+=======
+ "cpufeatures 0.2.17",
+>>>>>>> master
  "curve25519-dalek-derive",
  "digest",
  "fiat-crypto",
@@ -2123,6 +2147,31 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+=======
+name = "derive_more"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d751e9e49156b02b44f9c1815bcb94b984cdcc4396ecc32521c739452808b134"
+dependencies = [
+ "derive_more-impl",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "799a97264921d8623a957f6c3b9011f3b5492f557bbb7a5a19b7fa6d06ba8dcb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rustc_version",
+ "syn 2.0.117",
+ "unicode-xid",
+]
+
+[[package]]
+>>>>>>> master
 name = "deunicode"
 version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4205,6 +4254,10 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+<<<<<<< HEAD
+=======
+ "sonora",
+>>>>>>> master
  "soxr-sys",
  "thiserror 2.0.18",
  "tokio",
@@ -4439,14 +4492,25 @@ dependencies = [
  "imgproc",
  "libwebrtc",
  "livekit",
+<<<<<<< HEAD
+=======
+ "livekit-runtime",
+>>>>>>> master
  "log",
  "napi-build-ohos",
  "napi-derive-ohos",
  "napi-ohos",
+<<<<<<< HEAD
  "parking_lot",
  "serde",
  "serde_json",
  "smartward-call",
+=======
+ "p2p",
+ "parking_lot",
+ "serde",
+ "serde_json",
+>>>>>>> master
  "tokio",
 ]
 
@@ -5940,6 +6004,21 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+=======
+name = "p2p"
+version = "0.1.0"
+dependencies = [
+ "libwebrtc",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+>>>>>>> master
 name = "p384"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6268,7 +6347,11 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8159bd90725d2df49889a078b54f4f79e87f1f8a8444194cdca81d38f5393abf"
 dependencies = [
+<<<<<<< HEAD
  "cpufeatures",
+=======
+ "cpufeatures 0.2.17",
+>>>>>>> master
  "opaque-debug",
  "universal-hash",
 ]
@@ -6280,7 +6363,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d1fe60d06143b2430aa532c94cfe9e29783047f06c0d7fd359a9a51b729fa25"
 dependencies = [
  "cfg-if 1.0.4",
+<<<<<<< HEAD
  "cpufeatures",
+=======
+ "cpufeatures 0.2.17",
+>>>>>>> master
  "opaque-debug",
  "universal-hash",
 ]
@@ -7753,7 +7840,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3bf829a2d51ab4a5ddf1352d8470c140cadc8301b2ae1789db023f01cedd6ba"
 dependencies = [
  "cfg-if 1.0.4",
+<<<<<<< HEAD
  "cpufeatures",
+=======
+ "cpufeatures 0.2.17",
+>>>>>>> master
  "digest",
 ]
 
@@ -7764,7 +7855,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if 1.0.4",
+<<<<<<< HEAD
  "cpufeatures",
+=======
+ "cpufeatures 0.2.17",
+>>>>>>> master
  "digest",
 ]
 
@@ -7873,6 +7968,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
+<<<<<<< HEAD
 name = "smartward-call"
 version = "0.1.0"
 dependencies = [
@@ -7887,6 +7983,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> master
 name = "smawk"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7985,6 +8083,82 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+=======
+name = "sonora"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "559f6011d42721f7b4599ef4cf3224ac07539ee5bc25967169701c7aeb6c6bb1"
+dependencies = [
+ "sonora-aec3",
+ "sonora-agc2",
+ "sonora-common-audio",
+ "sonora-ns",
+ "sonora-simd",
+ "tracing",
+]
+
+[[package]]
+name = "sonora-aec3"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65d8b7e53b058aa4631cf2a8f483bd7a0dec093aa413d21b44b86d5704deedeb"
+dependencies = [
+ "sonora-common-audio",
+ "sonora-fft",
+ "sonora-simd",
+]
+
+[[package]]
+name = "sonora-agc2"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "132876fc38c4e191dee939a38243df5eb5830cd29f1d1ac9a67377389d74a10e"
+dependencies = [
+ "bytemuck",
+ "derive_more",
+ "sonora-common-audio",
+ "sonora-fft",
+ "sonora-simd",
+ "tracing",
+]
+
+[[package]]
+name = "sonora-common-audio"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30a16fa975fe4aa12e4d980d5453452bd3e6df2b33abfb89840e1757ebd212e6"
+dependencies = [
+ "derive_more",
+ "sonora-simd",
+]
+
+[[package]]
+name = "sonora-fft"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cca158c4b6ace2cb3f4fa8084842da2b4ffcc25cf8ac4366675aea541aabc6af"
+
+[[package]]
+name = "sonora-ns"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc549f9bca1d60e7a2483e4949e9649467c5cca371a4341e44aaf24dae338fd4"
+dependencies = [
+ "sonora-fft",
+]
+
+[[package]]
+name = "sonora-simd"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a053f93cc01f4e1cc51c61844a196b6d1da7e054cdd406d2cd27677ba4d898e0"
+dependencies = [
+ "cpufeatures 0.3.0",
+]
+
+[[package]]
+>>>>>>> master
 name = "soxr-sys"
 version = "0.1.3"
 dependencies = [

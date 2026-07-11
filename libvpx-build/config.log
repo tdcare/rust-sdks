@@ -1,0 +1,436 @@
+# /d/tdcare/tdcareos/tdnis-ohos/webrtc/libvpx/configure --target=generic-gnu --enable-vp8 --disable-vp9 --enable-static --disable-shared --enable-pic --disable-examples --disable-tools --disable-docs --disable-unit-tests --disable-install-docs --disable-install-bins --enable-realtime-only --enable-onthefly-bitpacking --disable-multithread --extra-cflags=-fPIC -O2 --disable-runtime-cpu-detect
+Configuring for target 'generic-gnu'
+  enabling generic
+check_cpp
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	#if !(__pie__ || __PIE__)
+     2	#error Neither __pie__ or __PIE__ are set
+     3	#endif
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -E -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -DNDEBUG
+check_cxx -Werror -DNDEBUG
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -Werror -DNDEBUG -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -DNDEBUG
+check_cc -Werror -DNDEBUG
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -Werror -DNDEBUG -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -O3
+check_cxx -Werror -O3
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -Werror -O3 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -O3
+check_cc -Werror -O3
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -Werror -O3 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -fPIC
+check_cxx -Werror -fPIC
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -Werror -fPIC -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -fPIC
+check_cc -Werror -fPIC
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -Werror -fPIC -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cc
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	unsigned int e = 'O'<<24 | '2'<<16 | 'B'<<8 | 'E';
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cc
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	static inline int function(void) {}
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+C:/Users/tzw/AppData/Local/Temp/vpx-conf-503-32676.c:1:35: warning: non-void function does not return a value [-Wreturn-type]
+static inline int function(void) {}
+                                  ^
+1 warning generated.
+check_cxxflags -Wall
+check_cxx -Werror -Wall
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Werror -Wall -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wall
+check_cc -Werror -Wall
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Werror -Wall -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wdisabled-optimization
+check_cxx -Werror -Wdisabled-optimization
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Werror -Wdisabled-optimization -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wdisabled-optimization
+check_cc -Werror -Wdisabled-optimization
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Werror -Wdisabled-optimization -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wextra-semi
+check_cxx -Werror -Wextra-semi
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Werror -Wextra-semi -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wextra-semi
+check_cc -Werror -Wextra-semi
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Werror -Wextra-semi -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wextra-semi-stmt
+check_cxx -Werror -Wextra-semi-stmt
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Werror -Wextra-semi-stmt -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wextra-semi-stmt
+check_cc -Werror -Wextra-semi-stmt
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Werror -Wextra-semi-stmt -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wfloat-conversion
+check_cxx -Werror -Wfloat-conversion
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Werror -Wfloat-conversion -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wfloat-conversion
+check_cc -Werror -Wfloat-conversion
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Werror -Wfloat-conversion -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wformat=2
+check_cxx -Werror -Wformat=2
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Werror -Wformat=2 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wformat=2
+check_cc -Werror -Wformat=2
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Werror -Wformat=2 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wparentheses-equality
+check_cxx -Werror -Wparentheses-equality
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Werror -Wparentheses-equality -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wparentheses-equality
+check_cc -Werror -Wparentheses-equality
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Werror -Wparentheses-equality -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wpointer-arith
+check_cxx -Werror -Wpointer-arith
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Werror -Wpointer-arith -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wpointer-arith
+check_cc -Werror -Wpointer-arith
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Werror -Wpointer-arith -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wtype-limits
+check_cxx -Werror -Wtype-limits
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Werror -Wtype-limits -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wtype-limits
+check_cc -Werror -Wtype-limits
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Werror -Wtype-limits -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wcast-qual
+check_cxx -Werror -Wcast-qual
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Werror -Wcast-qual -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wcast-qual
+check_cc -Werror -Wcast-qual
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Werror -Wcast-qual -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wvla
+check_cxx -Werror -Wvla
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Werror -Wvla -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wvla
+check_cc -Werror -Wvla
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Werror -Wvla -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wimplicit-function-declaration
+check_cxx -Werror -Wimplicit-function-declaration
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Werror -Wimplicit-function-declaration -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wimplicit-function-declaration
+check_cc -Werror -Wimplicit-function-declaration
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Werror -Wimplicit-function-declaration -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wmissing-declarations
+check_cxx -Werror -Wmissing-declarations
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Werror -Wmissing-declarations -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wmissing-declarations
+check_cc -Werror -Wmissing-declarations
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Werror -Wmissing-declarations -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wmissing-prototypes
+check_cxx -Werror -Wmissing-prototypes
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Werror -Wmissing-prototypes -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wmissing-prototypes
+check_cc -Werror -Wmissing-prototypes
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Werror -Wmissing-prototypes -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wshadow
+check_cxx -Werror -Wshadow
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Werror -Wshadow -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wshadow
+check_cc -Werror -Wshadow
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Werror -Wshadow -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wuninitialized
+check_cxx -Werror -Wuninitialized
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Werror -Wuninitialized -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wuninitialized
+check_cc -Werror -Wuninitialized
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Werror -Wuninitialized -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wunreachable-code-aggressive
+check_cxx -Werror -Wunreachable-code-aggressive
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Werror -Wunreachable-code-aggressive -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wunreachable-code-aggressive
+check_cc -Werror -Wunreachable-code-aggressive
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Werror -Wunreachable-code-aggressive -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wunused
+check_cxx -Werror -Wunused
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Werror -Wunused -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wunused
+check_cc -Werror -Wunused
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Werror -Wunused -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wextra
+check_cxx -Werror -Wextra
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Werror -Wextra -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -Wextra
+check_cc -Werror -Wextra
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Werror -Wextra -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cflags -Wundef
+check_cc -Werror -Wundef
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Werror -Wundef -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cflags -Wframe-larger-than=52000
+check_cc -Werror -Wframe-larger-than=52000
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wundef -Werror -Wframe-larger-than=52000 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cflags -std=gnu99
+check_cc -Werror -std=gnu99
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wundef -Wframe-larger-than=52000 -Werror -std=gnu99 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cflags -Wshorten-64-to-32
+check_cc -Werror -Wshorten-64-to-32
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wundef -Wframe-larger-than=52000 -std=gnu99 -Werror -Wshorten-64-to-32 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_cxxflags -Wc++14-extensions
+check_cxx -Werror -Wc++14-extensions
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Werror -Wc++14-extensions -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cxxflags -Wc++17-extensions
+check_cxx -Werror -Wc++17-extensions
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Werror -Wc++17-extensions -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cxxflags -Wc++20-extensions
+check_cxx -Werror -Wc++20-extensions
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Wc++17-extensions -Werror -Wc++20-extensions -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cxxflags -Wnon-virtual-dtor
+check_cxx -Werror -Wnon-virtual-dtor
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Wc++17-extensions -Wc++20-extensions -Werror -Wnon-virtual-dtor -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cxxflags -Wno-missing-declarations
+check_cxx -Werror -Wno-missing-declarations
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Wc++17-extensions -Wc++20-extensions -Wnon-virtual-dtor -Werror -Wno-missing-declarations -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cxxflags -Wno-missing-prototypes
+check_cxx -Werror -Wno-missing-prototypes
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Wc++17-extensions -Wc++20-extensions -Wnon-virtual-dtor -Werror -Wno-missing-prototypes -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cxxflags -Wno-pass-failed
+check_cxx -Werror -Wno-pass-failed
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Wc++17-extensions -Wc++20-extensions -Wnon-virtual-dtor -Werror -Wno-pass-failed -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cxxflags -Wno-shadow
+check_cxx -Werror -Wno-shadow
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Wc++17-extensions -Wc++20-extensions -Wnon-virtual-dtor -Werror -Wno-shadow -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cxxflags -Wno-unused-parameter
+check_cxx -Werror -Wno-unused-parameter
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Wc++17-extensions -Wc++20-extensions -Wnon-virtual-dtor -Werror -Wno-unused-parameter -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cxxflags -std=gnu++11
+check_cxx -Werror -std=gnu++11
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Wc++17-extensions -Wc++20-extensions -Wnon-virtual-dtor -Werror -std=gnu++11 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+  enabling webm_io
+check_cxx
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int z;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Wc++17-extensions -Wc++20-extensions -Wnon-virtual-dtor -std=gnu++11 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+  enabling libyuv
+check_cxxflags -fPIC -O2
+check_cxx -Werror -fPIC -O2
+BEGIN /tmp/vpx-conf-503-32676.cc
+     1	int x;
+END /tmp/vpx-conf-503-32676.cc
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wc++14-extensions -Wc++17-extensions -Wc++20-extensions -Wnon-virtual-dtor -std=gnu++11 -Werror -fPIC -O2 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.cc
+check_cflags -fPIC -O2
+check_cc -Werror -fPIC -O2
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wundef -Wframe-larger-than=52000 -std=gnu99 -Wshorten-64-to-32 -Werror -fPIC -O2 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_header stdio.h
+check_cpp
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	#include "stdio.h"
+     2	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wundef -Wframe-larger-than=52000 -std=gnu99 -Wshorten-64-to-32 -fPIC -O2 -E -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_ld
+check_cc
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	int main(void) {return 0;}
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wundef -Wframe-larger-than=52000 -std=gnu99 -Wshorten-64-to-32 -fPIC -O2 -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -o /tmp/vpx-conf-503-32676.x /tmp/vpx-conf-503-32676.o
+check_header pthread.h
+check_cpp
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	#include "pthread.h"
+     2	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wundef -Wframe-larger-than=52000 -std=gnu99 -Wshorten-64-to-32 -fPIC -O2 -E -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_lib -lpthread
+check_cc -lpthread
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	#include <pthread.h>
+     2	#include <stddef.h>
+     3	int main(void) { return pthread_create(NULL, NULL, NULL, NULL); }
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wundef -Wframe-larger-than=52000 -std=gnu99 -Wshorten-64-to-32 -fPIC -O2 -lpthread -c -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+clang: warning: -lpthread: 'linker' input unused [-Wunused-command-line-argument]
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -o /tmp/vpx-conf-503-32676.x /tmp/vpx-conf-503-32676.o -lpthread
+check_header unistd.h
+check_cpp
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	#include "unistd.h"
+     2	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wundef -Wframe-larger-than=52000 -std=gnu99 -Wshorten-64-to-32 -fPIC -O2 -E -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
+check_header vpx/vpx_integer.h -I/d/tdcare/tdcareos/tdnis-ohos/webrtc/libvpx
+check_cpp -I/d/tdcare/tdcareos/tdnis-ohos/webrtc/libvpx
+BEGIN /tmp/vpx-conf-503-32676.c
+     1	#include "vpx/vpx_integer.h"
+     2	int x;
+END /tmp/vpx-conf-503-32676.c
+/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=/c/Users/tzw/AppData/Local/OpenHarmony/Sdk/12/native/sysroot -DNDEBUG -O3 -fPIC -Wall -Wdisabled-optimization -Wextra-semi -Wextra-semi-stmt -Wfloat-conversion -Wformat=2 -Wparentheses-equality -Wpointer-arith -Wtype-limits -Wcast-qual -Wvla -Wimplicit-function-declaration -Wmissing-declarations -Wmissing-prototypes -Wshadow -Wuninitialized -Wunreachable-code-aggressive -Wunused -Wextra -Wundef -Wframe-larger-than=52000 -std=gnu99 -Wshorten-64-to-32 -fPIC -O2 -I/d/tdcare/tdcareos/tdnis-ohos/webrtc/libvpx -E -o /tmp/vpx-conf-503-32676.o /tmp/vpx-conf-503-32676.c
