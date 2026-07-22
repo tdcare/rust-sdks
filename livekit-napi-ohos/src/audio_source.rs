@@ -141,6 +141,30 @@ impl LkAudioSource {
         self.inner.clear_buffer();
     }
 
+    /// Enable software AEC (sonora WebRTC AEC3 + NS + AGC).
+    /// Must be called before capture_frame().
+    /// Idempotent: safe to call multiple times.
+    #[napi]
+    pub fn init_aec(&self) {
+        self.inner.init_aec();
+    }
+
+    /// Push far-end reference audio frame for AEC echo cancellation.
+    /// data: Buffer containing i16 PCM samples (mono, 48kHz).
+    #[napi]
+    pub fn push_reference_frame(&self, data: Buffer) -> Result<()> {
+        let bytes: &[u8] = data.as_ref();
+        if bytes.len() % 2 != 0 {
+            return Err(Error::from_reason("buffer length must be even"));
+        }
+        let samples = bytes.len() / 2;
+        let i16_data: &[i16] = unsafe {
+            std::slice::from_raw_parts(bytes.as_ptr() as *const i16, samples)
+        };
+        self.inner.push_reference_frame(i16_data);
+        Ok(())
+    }
+
     /// Configured sample rate in Hz.
     #[napi(getter)]
     pub fn sample_rate(&self) -> u32 {

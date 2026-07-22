@@ -20,6 +20,19 @@ rustflags = ["-C", "link-args=-ObjC"]
 [target.aarch64-apple-ios-sim]
 rustflags = ["-C", "link-args=-ObjC"]
 
+# Android cross-compilation targets
+# Requires Android NDK with clang toolchain
+# Set ANDROID_NDK_HOME environment variable to point to the NDK root
+
+[target.aarch64-linux-android]
+linker = "aarch64-linux-android21-clang"
+
+[target.armv7-linux-androideabi]
+linker = "armv7a-linux-androideabi21-clang"
+
+[target.x86_64-linux-android]
+linker = "x86_64-linux-android21-clang"
+
 # OHOS (OpenHarmony) cross-compilation targets
 # Requires OHOS SDK with NDK toolchain installed
 # Set OHOS_SDK_HOME environment variable to point to the SDK root

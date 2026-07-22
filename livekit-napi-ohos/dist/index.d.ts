@@ -371,6 +371,10 @@ export declare class LkAudioSource {
   captureFrame(data: ArrayBuffer, sampleRate: number, numChannels: number, samplesPerChannel: number): Promise<void>
   /** Drop any buffered samples that have not yet been encoded. */
   clearBuffer(): void
+  /** Enable software AEC (sonora WebRTC AEC3 + NS + AGC). Call before capture starts. */
+  initAec(): void
+  /** Push far-end reference PCM frame for echo cancellation. Data: ArrayBuffer of i16 samples. */
+  pushReferenceFrame(data: ArrayBuffer): void
   /** Configured sample rate in Hz. */
   get sampleRate(): number
   /** Configured number of audio channels. */

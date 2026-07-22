@@ -204,6 +204,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "android_logger"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05b07e8e73d720a1f2e4b6014766e6039fd2e96a4fa44e2a78d0e1fa2ff49826"
+dependencies = [
+ "android_log-sys",
+ "env_filter 0.1.4",
+ "log",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2487,6 +2498,16 @@ dependencies = [
 
 [[package]]
 name = "env_filter"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bf3c259d255ca70051b30e2e95b5446cdb8949ac4cd22c0d7fd634d89f568e2"
+dependencies = [
+ "log",
+ "regex",
+]
+
+[[package]]
+name = "env_filter"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "900d271a03799a1ee8d1ca9b19893b48ca674a9284fefcfb85f05e74ed314217"
@@ -2513,7 +2534,7 @@ checksum = "de671bd27a75a797dc9ae289ba1e77276e75e2026408aab65185384e2d5cd3f6"
 dependencies = [
  "anstream",
  "anstyle",
- "env_filter",
+ "env_filter 2.0.0",
  "jiff",
  "log",
 ]
@@ -4489,6 +4510,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "livekit-jni-android"
+version = "0.1.0"
+dependencies = [
+ "android_logger 0.14.1",
+ "futures",
+ "jni 0.21.1",
+ "libwebrtc",
+ "livekit",
+ "livekit-runtime",
+ "log",
+ "p2p",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "livekit-napi-ohos"
 version = "0.1.0"
 dependencies = [
@@ -4801,7 +4841,7 @@ dependencies = [
 name = "mobile"
 version = "0.1.0"
 dependencies = [
- "android_logger",
+ "android_logger 0.13.3",
  "futures",
  "jni 0.21.1",
  "lazy_static",

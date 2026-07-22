@@ -13,6 +13,7 @@ members = [
     "livekit-runtime",
     "livekit-wakeword",
     "livekit-napi-ohos",
+    "livekit-jni-android",
     "libwebrtc",
     "p2p",
     "soxr-sys",
