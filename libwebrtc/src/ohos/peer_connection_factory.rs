@@ -44,7 +44,7 @@ use crate::{
     audio_source::native::NativeAudioSource,
     audio_track::RtcAudioTrack,
     peer_connection::PeerConnection,
-    peer_connection_factory::{IceServer, RtcConfiguration},
+    peer_connection_factory::{IceServer, IceTransportsType, RtcConfiguration},
     rtp_parameters::{RtpCapabilities, RtpCodecCapability, RtpHeaderExtensionCapability},
     rtp_transceiver::RtpTransceiverDirection,
     video_source::native::NativeVideoSource,
@@ -236,10 +236,48 @@ impl PeerConnectionFactory {
             message: format!("failed to register UDP socket with tokio: {err}"),
         })?);
 
+        // Build multi-transport manager (UDP + optional TCP).
+        let mut transport = super::transport_manager::TransportManager::new(
+            socket,
+            local_addr_for_ice,
+        );
+
+        // Optionally bind a TCP listener if the ICE config allows TCP candidates.
+        // We bind on an ephemeral port; the actual port is injected as a TCP
+        // host candidate after `set_local_description` (see RtcIoDriver).
+        if config.ice_transport_type == IceTransportsType::All {
+            log::info!("peer_connection_factory: attempting TCP listener bind...");
+            if let Ok(tcp_std) = std::net::TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], 0))) {
+                tcp_std.set_nonblocking(true).ok();
+                if let Ok(tcp_tokio) = tokio::net::TcpListener::from_std(tcp_std) {
+                    let tcp_addr = tcp_tokio.local_addr().unwrap_or(
+                        SocketAddr::from(([0, 0, 0, 0], 0)),
+                    );
+                    // Replace with the real IP for ICE.
+                    let tcp_addr_for_ice = SocketAddr::new(real_ip, tcp_addr.port());
+                    transport.tcp_listener = Some(tcp_tokio);
+                    transport.local_tcp_addr = Some(tcp_addr_for_ice);
+                    log::info!(
+                        "peer_connection_factory: TCP listener bound on {} (ICE: {})",
+                        tcp_addr, tcp_addr_for_ice
+                    );
+                } else {
+                    log::warn!("peer_connection_factory: failed to convert TCP listener to tokio");
+                }
+            } else {
+                log::warn!("peer_connection_factory: failed to bind TCP listener");
+            }
+        } else {
+            log::info!(
+                "peer_connection_factory: TCP not enabled (ice_transport_type={:?})",
+                config.ice_transport_type
+            );
+        }
+
         // Wire up the channel pair and spawn the driver task.
         let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
         let (event_tx, event_rx) = mpsc::unbounded_channel();
-        let driver = RtcIoDriver::new(pc, socket, local_addr_for_ice, cmd_rx, event_tx);
+        let driver = RtcIoDriver::new(pc, transport, local_addr_for_ice, cmd_rx, event_tx);
         livekit_runtime::spawn(driver.run());
 
         let peer_connection = ImpPeerConnection::new(config, cmd_tx);

@@ -11,6 +11,7 @@ pub static FORCE_VP8: AtomicBool = AtomicBool::new(false);
 pub mod peer_connection;
 pub mod peer_connection_factory;
 pub mod rtc_io_driver;
+pub mod transport_manager;
 pub mod audio_source;
 pub mod audio_track;
 pub mod video_source;

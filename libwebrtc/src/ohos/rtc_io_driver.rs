@@ -85,6 +85,7 @@ use crate::{MediaType, RtcError, RtcErrorType};
 
 use super::ice_candidate::IceCandidate as ImpIceCandidate;
 use super::session_description::SessionDescription as ImpSessionDescription;
+use super::transport_manager::TransportManager;
 
 /// Default fall-back interval used when the rtc crate has no pending timer.
 ///
@@ -294,7 +295,8 @@ pub(crate) struct RtcIoDriver {
     cmd_rx: mpsc::UnboundedReceiver<ControlCommand>,
     event_tx: mpsc::UnboundedSender<PcEvent>,
     rtc_pc: RTCPeerConnection<NoopInterceptor>,
-    socket: Arc<UdpSocket>,
+    // UDP socket (and optional TCP streams) managed by the transport layer.
+    transport: TransportManager,
     local_addr: std::net::SocketAddr,
     /// Maps the public string handle returned to callers to the rtc-crate
     /// `RTCRtpSenderId`. Used to translate a `RemoveTrack` request back to
@@ -329,7 +331,7 @@ pub(crate) struct RtcIoDriver {
 impl RtcIoDriver {
     pub(crate) fn new(
         rtc_pc: RTCPeerConnection<NoopInterceptor>,
-        socket: Arc<UdpSocket>,
+        transport: TransportManager,
         local_addr: std::net::SocketAddr,
         cmd_rx: mpsc::UnboundedReceiver<ControlCommand>,
         event_tx: mpsc::UnboundedSender<PcEvent>,
@@ -338,7 +340,7 @@ impl RtcIoDriver {
             cmd_rx,
             event_tx,
             rtc_pc,
-            socket,
+            transport,
             local_addr,
             senders: HashMap::new(),
             tracks: HashMap::new(),
@@ -473,26 +475,29 @@ impl RtcIoDriver {
                     }
                 }
 
-                recv = self.socket.recv_from(&mut buf) => {
+                recv = self.transport.recv(&mut buf) => {
                     match recv {
-                        Ok((n, peer_addr)) => {
+                        Some(result) => {
                             let msg = TaggedBytesMut {
                                 now: Instant::now(),
                                 transport: TransportContext {
-                                    local_addr: self.local_addr,
-                                    peer_addr,
-                                    transport_protocol: TransportProtocol::UDP,
+                                    local_addr: match result.protocol {
+                                        TransportProtocol::UDP => self.local_addr,
+                                        TransportProtocol::TCP => self.transport.local_tcp_addr.unwrap_or(self.local_addr),
+                                    },
+                                    peer_addr: result.peer_addr,
+                                    transport_protocol: result.protocol,
                                     ecn: None,
                                 },
-                                message: BytesMut::from(&buf[..n]),
+                                message: BytesMut::from(&buf[..result.n]),
                             };
                             if let Err(err) = self.rtc_pc.handle_read(msg) {
                                 log::warn!("rtc handle_read failed: {err}");
                             }
-                            println!("[RtcIoDriver] handle_read: {} bytes from {}", n, peer_addr);
+                            println!("[RtcIoDriver] handle_read: {} bytes from {} via {:?}", result.n, result.peer_addr, result.protocol);
                         }
-                        Err(err) => {
-                            log::error!("UDP recv_from failed: {err}");
+                        None => {
+                            // No data on any transport — proceed to timeout.
                         }
                     }
                     false // should_break
@@ -558,15 +563,19 @@ impl RtcIoDriver {
                 );
                 continue;
             }
-            if let Err(err) = self.socket.send_to(&message, transport.peer_addr).await {
-                log::warn!("UDP send_to {} failed: {err}", transport.peer_addr);
+            if let Err(err) = self.transport.send_to(transport.peer_addr, &message, transport.transport_protocol).await {
+                log::warn!(
+                    "{:?} send_to {} failed: {err}",
+                    transport.transport_protocol,
+                    transport.peer_addr
+                );
             }
-            println!("[RtcIoDriver] send_to: {} bytes to {}", message.len(), transport.peer_addr);
+            println!("[RtcIoDriver] send_to({:?}): {} bytes to {}", transport.transport_protocol, message.len(), transport.peer_addr);
         }
         if pkt_count > 0 {
             log::info!(
-                "[RtcIoDriver] drain_writes: {} pkts ({} bytes) sent to {}",
-                pkt_count, total_bytes, self.socket.local_addr().map(|a| a.to_string()).unwrap_or_default()
+                "[RtcIoDriver] drain_writes: {} pkts ({} bytes) sent",
+                pkt_count, total_bytes
             );
         }
     }
