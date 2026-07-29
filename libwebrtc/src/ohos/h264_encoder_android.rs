@@ -75,6 +75,11 @@ extern "C" {
     fn AMediaCodec_start(codec: *mut AMediaCodec) -> media_status_t;
     fn AMediaCodec_stop(codec: *mut AMediaCodec) -> media_status_t;
     fn AMediaCodec_flush(codec: *mut AMediaCodec) -> media_status_t;
+    /// Apply runtime parameters (API 26+); used for "request-sync" keyframe requests.
+    fn AMediaCodec_setParameters(
+        codec: *mut AMediaCodec,
+        format: *const AMediaFormat,
+    ) -> media_status_t;
 
     // ---- Input ----
     fn AMediaCodec_dequeueInputBuffer(
@@ -232,7 +237,9 @@ impl H264Encoder {
             AMediaFormat_setInt32(format, key_height.as_ptr(), height as i32);
             AMediaFormat_setInt32(format, key_bitrate.as_ptr(), (bitrate_kbps * 1000) as i32);
             AMediaFormat_setInt32(format, key_framerate.as_ptr(), 30);
-            AMediaFormat_setInt32(format, key_iframe.as_ptr(), 5); // I-frame every 5 seconds
+            // Keyframe interval: 2 seconds (short interval ensures new SFU
+            // subscribers receive a keyframe quickly; matches OHOS encoder).
+            AMediaFormat_setInt32(format, key_iframe.as_ptr(), 2);
             AMediaFormat_setInt32(format, key_color.as_ptr(), COLOR_FORMAT_YUV420_FLEXIBLE);
         }
 
@@ -288,6 +295,31 @@ impl H264Encoder {
             timeout_us: 10_000, // 10ms poll timeout
             pending_output: None,
         })
+    }
+
+    /// Request the hardware encoder to produce a keyframe (IDR) immediately.
+    ///
+    /// Called when the SFU sends a PLI/FIR on behalf of a new subscriber.
+    /// Uses AMediaCodec_setParameters with "request-sync" (API 26+); on
+    /// failure the periodic keyframe interval remains the fallback.
+    pub fn request_keyframe(&self) {
+        if self.codec.is_null() {
+            return;
+        }
+        unsafe {
+            let format = AMediaFormat_new();
+            if format.is_null() {
+                return;
+            }
+            AMediaFormat_setInt32(format, b"request-sync\0".as_ptr() as *const c_char, 0);
+            let ret = AMediaCodec_setParameters(self.codec, format);
+            AMediaFormat_delete(format);
+            if ret == 0 {
+                log::info!("[H264Encoder-Android] request-sync succeeded (PLI-triggered keyframe)");
+            } else {
+                log::warn!("[H264Encoder-Android] request-sync failed: {ret}");
+            }
+        }
     }
 
     /// Push an I420 frame and return any available encoded H.264 packet.
