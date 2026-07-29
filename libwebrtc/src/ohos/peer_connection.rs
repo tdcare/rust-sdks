@@ -53,7 +53,7 @@ use crate::{
     rtp_receiver::RtpReceiver,
     rtp_sender::RtpSender,
     rtp_transceiver::{RtpTransceiver, RtpTransceiverDirection, RtpTransceiverInit},
-    session_description::SessionDescription,
+    session_description::{SdpType, SessionDescription},
     stats::RtcStats,
     MediaType, RtcError, RtcErrorType,
 };
@@ -396,9 +396,20 @@ impl PeerConnection {
             .send(ControlCommand::SetLocalDescription { desc: desc.handle.clone(), reply: tx })
             .map_err(|_| driver_gone_err())?;
         rx.await.map_err(|_| driver_gone_err())??;
-        // Mirror the new local description for synchronous accessors. The
-        // signaling state itself is updated through the rtc event stream.
-        self.inner.lock().local_description = Some(desc);
+        // Mirror the new local description AND signaling state synchronously.
+        // The async rtc event stream also updates the state, but consumers
+        // (e.g. PeerTransport::create_and_send_offer) read it immediately
+        // after this call returns — a stale cached state causes deferred
+        // renegotiations that never fire.
+        {
+            let mut inner = self.inner.lock();
+            inner.signaling_state = match desc.sdp_type() {
+                SdpType::Offer => SignalingState::HaveLocalOffer,
+                SdpType::PrAnswer => SignalingState::HaveLocalPrAnswer,
+                SdpType::Answer | SdpType::Rollback => SignalingState::Stable,
+            };
+            inner.local_description = Some(desc);
+        }
         Ok(())
     }
 
@@ -409,7 +420,16 @@ impl PeerConnection {
             .send(ControlCommand::SetRemoteDescription { desc: desc.handle.clone(), reply: tx })
             .map_err(|_| driver_gone_err())?;
         rx.await.map_err(|_| driver_gone_err())??;
-        self.inner.lock().remote_description = Some(desc);
+        // Mirror synchronously (see set_local_description for rationale).
+        {
+            let mut inner = self.inner.lock();
+            inner.signaling_state = match desc.sdp_type() {
+                SdpType::Offer => SignalingState::HaveRemoteOffer,
+                SdpType::PrAnswer => SignalingState::HaveRemotePrAnswer,
+                SdpType::Answer | SdpType::Rollback => SignalingState::Stable,
+            };
+            inner.remote_description = Some(desc);
+        }
         Ok(())
     }
 

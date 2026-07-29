@@ -151,19 +151,22 @@ impl PeerConnectionFactory {
         // VP8 second (software fallback for devices without H264 hardware)
         for codec in [
             // H264 @ PT=125 (primary — preferred when hardware encoder available)
+            // profile-level-id=42e01f = Constrained Baseline Profile Level 3.1
+            // Must match the actual encoder output (Baseline Profile) for
+            // cross-browser compatibility with WebRTC subscribers.
             RTCRtpCodecParameters {
                 rtp_codec: RTCRtpCodec {
                     mime_type: MIME_TYPE_H264.to_owned(),
                     clock_rate: 90000,
                     channels: 0,
                     sdp_fmtp_line:
-                        "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=64001e"
+                        "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
                             .to_owned(),
                     rtcp_feedback: video_rtcp_feedback.clone(),
                 },
                 payload_type: 125,
             },
-            // VP8 @ PT=96 (fallback — used when H264 encoder unavailable)
+            // VP8 @ PT=96 (fallback — always available via libvpx software encoder)
             RTCRtpCodecParameters {
                 rtp_codec: RTCRtpCodec {
                     mime_type: MIME_TYPE_VP8.to_owned(),
@@ -583,7 +586,7 @@ fn video_capabilities() -> RtpCapabilities {
                     clock_rate: Some(90000),
                     channels: None,
                     sdp_fmtp_line: Some(
-                        "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=64001e"
+                        "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
                             .to_string(),
                     ),
                 },

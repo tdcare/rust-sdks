@@ -605,26 +605,16 @@ impl YuvRenderer {
             );
         }
 
-        // DEBUG: log first 4 pixel values and XOR checksums every 30th frame
-        if self.frame_count <= 5 || self.frame_count % 30 == 0 {
+        // DEBUG: log first pixel values for the first frames only
+        // (periodic full-plane XOR checksums were removed — too expensive).
+        if self.frame_count <= 5 {
             let y0 = i420_data[0];
             let y1 = i420_data[1];
             let u0 = i420_data[y_size];
             let v0 = i420_data[y_size + uv_size];
-            let y_xor = i420_data[..y_size]
-                .iter()
-                .fold(0u8, |acc, b| acc ^ b);
-            let u_xor = i420_data[y_size..y_size + uv_size]
-                .iter()
-                .fold(0u8, |acc, b| acc ^ b);
-            let v_xor = i420_data[y_size + uv_size..y_size + uv_size * 2]
-                .iter()
-                .fold(0u8, |acc, b| acc ^ b);
             log::info!(
-                "[YuvRenderer] frame={}, {}x{}, Y[0]={}, Y[1]={}, U[0]={}, V[0]={}, \
-                 y_xor={:02x}, u_xor={:02x}, v_xor={:02x}, data_len={}",
-                self.frame_count, w, h, y0, y1, u0, v0,
-                y_xor, u_xor, v_xor, i420_data.len()
+                "[YuvRenderer] frame={}, {}x{}, Y[0]={}, Y[1]={}, U[0]={}, V[0]={}, data_len={}",
+                self.frame_count, w, h, y0, y1, u0, v0, i420_data.len()
             );
         }
         true

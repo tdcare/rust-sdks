@@ -233,7 +233,7 @@ impl NativeAudioSource {
 
                 if encoded_len > 0 {
                     let cnt = ENCODE_FRAME_COUNT.fetch_add(1, Ordering::Relaxed);
-                    if cnt % 100 == 0 {
+                    if cnt <= 3 {
                         let pcm_min = state.pcm_scratch.iter().copied().min().unwrap_or(0);
                         let pcm_max = state.pcm_scratch.iter().copied().max().unwrap_or(0);
                         let pcm_head: Vec<i16> = state.pcm_scratch.iter().take(4).copied().collect();
@@ -426,10 +426,10 @@ impl NativeAudioSource {
     pub fn push_reference_frame(&self, data: &[i16]) {
         let mut state = self.encoder_state.lock();
         state.render_buffer.extend(data.iter().copied());
-        // Diagnostic: log first frame and every 100th
+        // Diagnostic: log the first reference frame only
         static REF_COUNT: AtomicU64 = AtomicU64::new(0);
         let n = REF_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-        if n == 1 || n % 500 == 0 {
+        if n == 1 {
             log::info!("[NativeAudioSource] push_reference_frame #{}: {} samples, head=[{},{}], total_buf={}",
                 n, data.len(), data.first().unwrap_or(&0), data.get(1).unwrap_or(&0), state.render_buffer.len());
         }

@@ -748,26 +748,14 @@ impl SoftwareVP8Decoder {
                 });
 
                 self.decode_ok_count += 1;
-                // 诊断日志: 每 30 帧或前 5 帧输出详细信息
-                if self.decode_ok_count <= 5
-                    || self.decode_ok_count % 30 == 0
-                {
-                    let y_xor = self.dec_output_scratch[..y_size]
-                        .iter()
-                        .fold(0u8, |acc, b| acc ^ b);
-                    let u_xor = self.dec_output_scratch[y_size..y_size + u_size]
-                        .iter()
-                        .fold(0u8, |acc, b| acc ^ b);
-                    let v_xor = self.dec_output_scratch[y_size + u_size..y_size + u_size + v_size]
-                        .iter()
-                        .fold(0u8, |acc, b| acc ^ b);
+                // 诊断日志: 仅前 5 帧输出（周期性全平面 XOR 校验计算开销大，已移除）
+                if self.decode_ok_count <= 5 {
                     let is_keyframe = (vp8_data[0] & 0x01) == 0;
                     log::info!(
-                        "[SW-VP8Dec] frame#{} ok: {}x{}, y_stride={}, u_stride={}, v_stride={}, \
-                         data={}B, y_xor={:02x}, u_xor={:02x}, v_xor={:02x}, kf={}",
+                        "[SW-VP8Dec] frame#{} ok: {}x{}, y_stride={}, u_stride={}, v_stride={}, data={}B, kf={}",
                         self.decode_ok_count, width, height,
                         y_stride, u_stride, v_stride,
-                        vp8_data.len(), y_xor, u_xor, v_xor, is_keyframe,
+                        vp8_data.len(), is_keyframe,
                     );
                 }
                 

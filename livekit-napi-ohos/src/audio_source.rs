@@ -127,7 +127,7 @@ impl LkAudioSource {
             .map_err(|e| Error::from_reason(format!("capture_frame failed: {e:?}")));
 
         let count = AUDIO_FRAME_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-        if count % 100 == 1 {
+        if count == 1 {
             log::info!("[LkAudioSource] capture_frame #{}: rate={} ch={} spc={}",
                 count, sample_rate, num_channels, samples_per_channel);
         }

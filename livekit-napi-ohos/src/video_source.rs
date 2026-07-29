@@ -298,7 +298,7 @@ impl LkVideoSource {
         self.inner.capture_frame(&frame);
 
         let count = FRAME_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-        if count % 30 == 1 {
+        if count == 1 {
             log::info!(
                 "[LkVideoSource] capture_frame #{}: {}x{} ts={}",
                 count, width, height, timestamp_us
@@ -353,7 +353,7 @@ impl LkVideoSource {
         }
 
         let count = FRAME_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-        if count % 30 == 1 {
+        if count == 1 {
             log::info!(
                 "[LkVideoSource] capture_frame_nv21 #{}: {}x{} ts={}",
                 count, width, height, timestamp_us
@@ -403,7 +403,10 @@ impl LkVideoSource {
         let (u_slice, v_slice) = rest.split_at_mut(cw * ch);
 
         // Use the imgproc crate to convert RGBA→I420.
-        imgproc::colorcvt::rgba_to_i420(
+        // NOTE: libyuv names formats by little-endian word order, so memory
+        // layout [R,G,B,A] (OHOS RGBA_8888) is libyuv "ABGR". Using
+        // rgba_to_i420 here would read alpha as R, turning black into red.
+        imgproc::colorcvt::abgr_to_i420(
             rgba,
             (width * 4) as u32,
             y_slice,
@@ -422,7 +425,7 @@ impl LkVideoSource {
         }
 
         let count = FRAME_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-        if count % 30 == 1 {
+        if count == 1 {
             log::info!(
                 "[LkVideoSource] capture_frame_rgba #{}: {}x{} ts={}",
                 count, width, height, timestamp_us

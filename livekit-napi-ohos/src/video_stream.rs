@@ -159,7 +159,7 @@ impl LkVideoStream {
         }
 
         if drained_count > 0 {
-            log::info!(
+            log::debug!(
                 "[LkVideoStream] v30: skipped {} stale frames, rendering latest",
                 drained_count
             );

@@ -99,6 +99,42 @@ extern "C" {
     fn OH_VideoEncoder_FreeOutputBuffer(codec: *mut OH_AVCodec, index: c_uint) -> c_int;
 }
 
+/// Dynamically resolve OH_VideoEncoder_RequestSyncFrame (API 11+).
+/// Returns None on devices where the symbol doesn't exist.
+type RequestSyncFrameFn = unsafe extern "C" fn(*mut OH_AVCodec) -> c_int;
+
+static REQUEST_SYNC_FRAME: std::sync::OnceLock<Option<RequestSyncFrameFn>> = std::sync::OnceLock::new();
+
+extern "C" {
+    fn dlopen(filename: *const c_char, flags: c_int) -> *mut c_void;
+    fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
+}
+const RTLD_NOW: c_int = 2;
+const RTLD_NOLOAD: c_int = 4;
+
+fn get_request_sync_frame() -> Option<RequestSyncFrameFn> {
+    *REQUEST_SYNC_FRAME.get_or_init(|| {
+        unsafe {
+            let handle = dlopen(
+                b"libnative_media_venc.so\0".as_ptr() as *const c_char,
+                RTLD_NOW | RTLD_NOLOAD,
+            );
+            if handle.is_null() {
+                log::warn!("[H264Encoder] dlopen libnative_media_venc.so failed, RequestSyncFrame unavailable");
+                return None;
+            }
+            let sym = dlsym(handle, b"OH_VideoEncoder_RequestSyncFrame\0".as_ptr() as *const c_char);
+            if sym.is_null() {
+                log::warn!("[H264Encoder] OH_VideoEncoder_RequestSyncFrame not found (API < 11), keyframe-on-demand unavailable");
+                None
+            } else {
+                log::info!("[H264Encoder] OH_VideoEncoder_RequestSyncFrame resolved successfully");
+                Some(std::mem::transmute::<*mut c_void, RequestSyncFrameFn>(sym))
+            }
+        }
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Encoder internals
 // ---------------------------------------------------------------------------
@@ -404,7 +440,9 @@ impl H264Encoder {
             OH_AVFormat_SetIntValue(format, b"pixel_format\0".as_ptr() as _, AV_PIXEL_FORMAT_NV12);
             OH_AVFormat_SetDoubleValue(format, b"frame_rate\0".as_ptr() as _, 30.0);
             OH_AVFormat_SetLongValue(format, b"bitrate\0".as_ptr() as _, (bitrate_kbps as i64) * 1000);
-            OH_AVFormat_SetIntValue(format, b"i_frame_interval\0".as_ptr() as _, 5);
+            // Keyframe interval: 2 seconds (short interval ensures new SFU
+            // subscribers receive a keyframe quickly without waiting for PLI).
+            OH_AVFormat_SetIntValue(format, b"i_frame_interval\0".as_ptr() as _, 2);
             // Set H264 profile to Baseline and level to 3.1 for maximum browser compatibility
             // OH_AVCodec profile values (based on Android MediaCodec): 1=Baseline, 2=Main, 8=High
             OH_AVFormat_SetIntValue(format, b"profile\0".as_ptr() as _, 1);  // Baseline Profile
@@ -481,7 +519,7 @@ fn i420_to_nv12_into(i420: &[u8], width: u32, height: u32, dst: &mut Vec<u8>) {
 
         }
         self.frame_count += 1;
-        if self.frame_count % 30 == 1 {
+        if self.frame_count % 300 == 1 {
             let out = self.user_data.output_queue.lock().len();
             log::info!("[H264Encoder] frame #{}: {}x{} pending={} out={}",
                 self.frame_count, self.width, self.height,
@@ -492,6 +530,30 @@ fn i420_to_nv12_into(i420: &[u8], width: u32, height: u32, dst: &mut Vec<u8>) {
         // not at all, so the active drain path is essential.
         self.drain_pending();
         Ok(self.poll_output())
+    }
+
+    /// Request the hardware encoder to produce a keyframe (IDR) immediately.
+    ///
+    /// Called when the SFU sends a PLI/FIR on behalf of a new subscriber.
+    /// The next encoded frame will be a sync frame containing SPS/PPS + IDR.
+    /// Falls back gracefully on devices without OH_VideoEncoder_RequestSyncFrame.
+    pub fn request_keyframe(&self) {
+        if self.codec.is_null() {
+            return;
+        }
+        match get_request_sync_frame() {
+            Some(f) => {
+                let ret = unsafe { f(self.codec) };
+                if ret == AV_ERR_OK {
+                    log::info!("[H264Encoder] RequestSyncFrame succeeded (PLI-triggered keyframe)");
+                } else {
+                    log::warn!("[H264Encoder] RequestSyncFrame failed: {ret}");
+                }
+            }
+            None => {
+                log::warn!("[H264Encoder] RequestSyncFrame unavailable, relying on periodic keyframe");
+            }
+        }
     }
 
     fn drain_pending(&self) {
@@ -524,7 +586,7 @@ fn i420_to_nv12_into(i420: &[u8], width: u32, height: u32, dst: &mut Vec<u8>) {
                 }
                 if OH_VideoEncoder_PushInputBuffer(self.codec, info.index) == AV_ERR_OK {
                     let n = self.user_data.encode_count.fetch_add(1, Ordering::Relaxed) + 1;
-                    if n <= 5 || n % 100 == 0 {
+                    if n <= 5 {
                         log::info!("[H264Encoder] encoded #{n}: {} bytes (buf_cap={cap}, gap={})",
                             frame.data.len(), cap as usize - frame.data.len());
                     }
@@ -563,7 +625,7 @@ fn i420_to_nv12_into(i420: &[u8], width: u32, height: u32, dst: &mut Vec<u8>) {
                     && OH_VideoEncoder_PushInputBuffer(codec, index) == AV_ERR_OK
                 {
                     let n = data.encode_count.fetch_add(1, Ordering::Relaxed) + 1;
-                    if n <= 5 || n % 100 == 0 {
+                    if n <= 5 {
                         log::info!("[H264Encoder] cb encode #{n}: {} bytes", frame.data.len());
                     }
                     return;
@@ -580,7 +642,7 @@ fn i420_to_nv12_into(i420: &[u8], width: u32, height: u32, dst: &mut Vec<u8>) {
             if iq.len() >= 16 { iq.pop_front(); }
             iq.push_back(info);
         }
-        if count <= 3 || count % 100 == 0 {
+        if count <= 3 {
             log::info!("[H264Encoder] input buffer cached: idx={index} cap={cap} cb=#{count}");
         }
     }
@@ -709,19 +771,14 @@ fn i420_to_nv12_into(i420: &[u8], width: u32, height: u32, dst: &mut Vec<u8>) {
 
 impl Drop for H264Encoder {
     fn drop(&mut self) {
-        eprintln!("[H264Encoder] Drop START: frames={}, codec={:?}", self.frame_count, self.codec);
         self.is_running.store(false, Ordering::SeqCst);
         if !self.codec.is_null() {
-            eprintln!("[H264Encoder] calling OH_VideoEncoder_Stop...");
             unsafe { OH_VideoEncoder_Stop(self.codec); }
-            eprintln!("[H264Encoder] Stop done, sleeping 50ms to flush callbacks...");
+            // Allow in-flight OH_AVCodec callbacks to flush before Destroy.
             std::thread::sleep(std::time::Duration::from_millis(50));
-            eprintln!("[H264Encoder] calling OH_VideoEncoder_Destroy...");
             unsafe { OH_VideoEncoder_Destroy(self.codec); }
-            eprintln!("[H264Encoder] Destroy done");
             self.codec = null_mut();
         }
         log::info!("[H264Encoder] destroyed after {} frames", self.frame_count);
-        eprintln!("[H264Encoder] Drop DONE");
     }
 }

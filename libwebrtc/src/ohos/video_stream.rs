@@ -668,7 +668,7 @@ impl NativeVideoStream {
         };
 
         if stride_y != w && (stride_y as i64 - w as i64).abs() > 4 {
-            eprintln!(
+            log::debug!(
                 "[H264->I420] STRIDE_PAD: {}x{}, stride_y={} (width={}), data_len={} vs compact={}",
                 w, h, stride_y, w, data.len(), compact_nv12
             );
@@ -795,7 +795,7 @@ impl Stream for NativeVideoStream {
         this.poll_decoder_output();
         if let Some(frame) = this.decoded_frames.pop_front() {
             this.output_frame_count += 1;
-            if this.output_frame_count == 1 || this.output_frame_count % 30 == 0 {
+            if this.output_frame_count == 1 {
                 log::info!(
                     "poll_next: returning frame #{} [{}] {}x{}, ts_us={}, buf_type={:?}",
                     this.output_frame_count, codec_label, frame.buffer.width(), frame.buffer.height(),
@@ -815,7 +815,7 @@ impl Stream for NativeVideoStream {
                     this.poll_decoder_output();
                     if let Some(frame) = this.decoded_frames.pop_front() {
                         this.output_frame_count += 1;
-                        if this.output_frame_count == 1 || this.output_frame_count % 30 == 0 {
+                        if this.output_frame_count == 1 {
                             log::info!(
                                 "poll_next: returning frame #{} [{}] {}x{}, ts_us={}, buf_type={:?}",
                                 this.output_frame_count, codec_label, frame.buffer.width(), frame.buffer.height(),
@@ -831,7 +831,7 @@ impl Stream for NativeVideoStream {
                     this.poll_decoder_output();
                     if let Some(frame) = this.decoded_frames.pop_front() {
                         this.output_frame_count += 1;
-                        if this.output_frame_count == 1 || this.output_frame_count % 30 == 0 {
+                        if this.output_frame_count == 1 {
                             log::info!(
                                 "poll_next: returning frame #{} [{}] {}x{}, ts_us={}, buf_type={:?}",
                                 this.output_frame_count, codec_label, frame.buffer.width(), frame.buffer.height(),

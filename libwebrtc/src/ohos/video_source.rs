@@ -20,6 +20,7 @@
 //! connection).
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 
 use parking_lot::Mutex;
 
@@ -34,6 +35,31 @@ use super::rtp_send_pipeline::RtpSendPipeline;
 #[cfg(any(target_env = "ohos", target_os = "android"))]
 use super::h264_encoder::H264Encoder;
 use super::vp8_encoder::Vp8Encoder;
+
+// ---------------------------------------------------------------------------
+// Global keyframe-request registry.
+//
+// Maps SSRC → keyframe flag. When the RtcIoDriver detects an RTCP PLI/FIR
+// for a given SSRC, it sets the corresponding flag. The NativeVideoSource
+// checks its flag on each encode() call and triggers a hardware keyframe.
+// ---------------------------------------------------------------------------
+static KEYFRAME_REGISTRY: std::sync::OnceLock<
+    parking_lot::Mutex<std::collections::HashMap<u32, Arc<AtomicBool>>>,
+> = std::sync::OnceLock::new();
+
+fn keyframe_registry() -> &'static parking_lot::Mutex<std::collections::HashMap<u32, Arc<AtomicBool>>> {
+    KEYFRAME_REGISTRY.get_or_init(|| parking_lot::Mutex::new(std::collections::HashMap::new()))
+}
+
+/// Signal a keyframe request for the given SSRC (called from RtcIoDriver
+/// when an RTCP PLI/FIR is received from the SFU).
+pub fn request_keyframe_for_ssrc(ssrc: u32) {
+    let reg = keyframe_registry().lock();
+    if let Some(flag) = reg.get(&ssrc) {
+        flag.store(true, AtomicOrdering::Relaxed);
+        log::info!("[KeyframeRegistry] PLI received → keyframe requested for ssrc={ssrc}");
+    }
+}
 
 /// Copy a strided plane (width × height, row stride may differ from width)
 /// into a contiguous buffer with no padding between rows.
@@ -151,6 +177,9 @@ pub struct NativeVideoSource {
     encoder_slot: Arc<Mutex<EncoderSlot>>,
     /// Optional pipeline that forwards encoded video frames as RTP packets.
     rtp_pipeline: Arc<Mutex<Option<RtpSendPipeline>>>,
+    /// Set to true when the SFU requests a keyframe (via PLI/FIR).
+    /// The encoder checks this flag on the next encode() call.
+    keyframe_requested: Arc<AtomicBool>,
 }
 
 impl NativeVideoSource {
@@ -169,19 +198,34 @@ impl NativeVideoSource {
                 keyframes_sent: 0,
             })),
             rtp_pipeline: Arc::new(Mutex::new(None)),
+            keyframe_requested: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// Signal that a keyframe is needed (e.g. PLI received from SFU).
+    /// The encoder will produce an IDR frame on the next encode() call.
+    pub fn request_keyframe(&self) {
+        self.keyframe_requested.store(true, AtomicOrdering::Relaxed);
+        log::info!("[NativeVideoSource] keyframe requested (PLI/FIR from SFU)");
     }
 
     /// Bind an [`RtpSendPipeline`] used to forward encoded video frames.
     pub(crate) fn bind_rtp_pipeline(&self, pipeline: RtpSendPipeline) {
-        log::info!("[NativeVideoSource] bind_rtp_pipeline: video RTP pipeline bound successfully");
+        // Register the keyframe flag in the global registry so the
+        // RtcIoDriver can signal PLI-triggered keyframe requests by SSRC.
+        let ssrc = pipeline.ssrc();
+        {
+            let mut reg = keyframe_registry().lock();
+            reg.insert(ssrc, self.keyframe_requested.clone());
+        }
+        log::info!("[NativeVideoSource] bind_rtp_pipeline: video RTP pipeline bound successfully (ssrc={ssrc})");
         *self.rtp_pipeline.lock() = Some(pipeline);
     }
 
     /// Accept pre-rotated I420 data directly without further rotation.
     pub fn capture_raw_i420(&self, i420_data: &[u8], width: u32, height: u32, timestamp_us: i64) {
         let count = { let mut c = self.captured_frames.lock(); *c += 1; *c };
-        if count % 30 == 1 { log::info!("[NativeVideoSource] capture_raw_i420 #{count}: {width}x{height}"); }
+        if count == 1 { log::info!("[NativeVideoSource] capture_raw_i420 started: {width}x{height}"); }
         { let mut res = self.resolution.lock(); if res.width != width || res.height != height { res.width = width; res.height = height; } }
         self.encode_and_send(i420_data, width, height, timestamp_us);
     }
@@ -220,7 +264,7 @@ impl NativeVideoSource {
 
             // (Re)create encoder if resolution changed.
             if slot.last_width != width || slot.last_height != height {
-                eprintln!("[encode_and_send] resolution changed: {}x{} -> {}x{}, replacing encoder...", slot.last_width, slot.last_height, width, height);
+                log::info!("[encode_and_send] resolution changed: {}x{} -> {}x{}, replacing encoder", slot.last_width, slot.last_height, width, height);
                 let kbps = ((width * height * 2) / 1000).max(200);
 
                 // Auto-select codec: H.264 hardware encoder preferred;
@@ -229,7 +273,6 @@ impl NativeVideoSource {
                     match H264Encoder::new(width, height, kbps) {
                         Ok(enc) => {
                             log::info!("[NativeVideoSource] using H264 hw encoder: {width}x{height} @ {kbps}kbps");
-                            eprintln!("[encode_and_send] H264 encoder created, replacing old encoder...");
                             VideoEncoder::H264(enc)
                         }
                         Err(e) => {
@@ -248,9 +291,7 @@ impl NativeVideoSource {
                             }
                         }
                     };
-                eprintln!("[encode_and_send] about to replace slot.encoder (old encoder will Drop now)...");
                 slot.encoder = Some(encoder);
-                eprintln!("[encode_and_send] old encoder dropped, new encoder in place");
                 slot.last_width = width;
                 slot.last_height = height;
             }
@@ -260,6 +301,16 @@ impl NativeVideoSource {
                 None => return,
             };
             codec_name = encoder.codec_name();
+
+            // Check if a keyframe was requested (PLI/FIR from SFU).
+            // If so, ask the hardware encoder to produce a sync frame.
+            if self.keyframe_requested.swap(false, AtomicOrdering::Relaxed) {
+                if let VideoEncoder::H264(ref h264) = encoder {
+                    h264.request_keyframe();
+                }
+                // VP8 encoder always produces keyframes periodically; no
+                // explicit request mechanism needed for software VP8.
+            }
 
             match encoder.encode(i420_data, timestamp_us) {
                 Ok(Some((data, is_key))) => {
@@ -296,22 +347,21 @@ impl NativeVideoSource {
                     {
                         let mut slot = self.encoder_slot.lock();
                         slot.rtp_packets_sent += count as u64;
-                        
-                        // Periodic heartbeat every 100 frames
-                        if fc % 100 == 0 {
+
+                        // Periodic heartbeat (~every 20s at 15fps)
+                        if fc % 300 == 0 {
                             log::info!(
                                 "[NativeVideoSource] HEARTBEAT: captured={}, encoded={}, rtp_pkts={}, keyframes={}, codec={}, ssrc={}",
                                 fc, slot.frames_encoded, slot.rtp_packets_sent, slot.keyframes_sent, codec_name, p.ssrc()
                             );
                         }
                     }
-                    
-                    // Log first 10 frames and every 100th frame
-                    if fc <= 10 || fc % 100 == 0 {
-                        let head: Vec<String> = data.iter().take(8).map(|b| format!("{:02x}", b)).collect();
+
+                    // Log only the first frames (hex formatting is not free).
+                    if fc <= 3 {
                         log::info!(
-                            "[NativeVideoSource] RTP sent: {} bytes, {} pkts, codec={}, key={}, ssrc={}, head=[{}], #{}",
-                            data.len(), count, codec_name, is_key, p.ssrc(), head.join(" "), fc
+                            "[NativeVideoSource] RTP sent: {} bytes, {} pkts, codec={}, key={}, ssrc={}, #{}",
+                            data.len(), count, codec_name, is_key, p.ssrc(), fc
                         );
                     }
                 }

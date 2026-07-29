@@ -324,6 +324,14 @@ pub(crate) struct RtcIoDriver {
     /// Track IDs for which an SSRC mismatch between the pipeline and the
     /// rtc crate has already been logged.  Deduplicated to avoid log spam.
     rtp_ssrc_mismatch_logged: HashSet<String>,
+    /// Track IDs whose m-section has been confirmed present in the remote
+    /// answer. RTP for tracks not in this set is dropped: the SFU (pion)
+    /// permanently ignores RTP streams whose SSRC arrives before the
+    /// corresponding SDP negotiation completes ("Incoming unhandled RTP
+    /// ssrc"), which manifests as a publish timeout.
+    rtp_negotiated_tracks: HashSet<String>,
+    /// Track IDs for which the "waiting for negotiation" gate log has fired.
+    rtp_gate_logged: HashSet<String>,
     /// Last observed ICE connection state (updated in drain_events).
     last_ice_state: RTCIceConnectionState,
 }
@@ -348,6 +356,8 @@ impl RtcIoDriver {
             host_candidate_added: false,
             rtp_write_logged: HashSet::new(),
             rtp_ssrc_mismatch_logged: HashSet::new(),
+            rtp_negotiated_tracks: HashSet::new(),
+            rtp_gate_logged: HashSet::new(),
             last_ice_state: RTCIceConnectionState::Unspecified,
         }
     }
@@ -381,7 +391,6 @@ impl RtcIoDriver {
             .map_err(internal_err)?;
         self.rtc_pc.add_local_candidate(init).map_err(internal_err)?;
         self.host_candidate_added = true;
-        println!("[RtcIoDriver] added host candidate: {}:{}", self.local_addr.ip(), self.local_addr.port());
         log::info!(
             "rtc_io_driver: added local host ICE candidate {}:{}",
             self.local_addr.ip(),
@@ -494,7 +503,6 @@ impl RtcIoDriver {
                             if let Err(err) = self.rtc_pc.handle_read(msg) {
                                 log::warn!("rtc handle_read failed: {err}");
                             }
-                            println!("[RtcIoDriver] handle_read: {} bytes from {} via {:?}", result.n, result.peer_addr, result.protocol);
                         }
                         None => {
                             // No data on any transport — proceed to timeout.
@@ -519,9 +527,6 @@ impl RtcIoDriver {
             //    "Connected" state.
             if let Err(err) = self.rtc_pc.handle_timeout(Instant::now()) {
                 log::warn!("rtc handle_timeout failed: {err}");
-            }
-            if loop_count % 100 == 0 {
-                println!("[RtcIoDriver] loop_count={}, ICE state: {:?}", loop_count, self.last_ice_state);
             }
 
             // 4) Drain protocol events (state changes, ICE candidates, ...)
@@ -548,12 +553,8 @@ impl RtcIoDriver {
     // ---- Sans-I/O pumping ---------------------------------------------------
 
     async fn drain_writes(&mut self) {
-        let mut pkt_count: u64 = 0;
-        let mut total_bytes: usize = 0;
         while let Some(out) = self.rtc_pc.poll_write() {
             let TaggedBytesMut { transport, message, .. } = out;
-            pkt_count += 1;
-            total_bytes += message.len();
             // Skip address family mismatches: ICE agent may produce IPv6 target
             // while socket is bound to IPv4, causing send_to to silently fail.
             if self.local_addr.is_ipv4() != transport.peer_addr.is_ipv4() {
@@ -570,13 +571,6 @@ impl RtcIoDriver {
                     transport.peer_addr
                 );
             }
-            println!("[RtcIoDriver] send_to({:?}): {} bytes to {}", transport.transport_protocol, message.len(), transport.peer_addr);
-        }
-        if pkt_count > 0 {
-            log::info!(
-                "[RtcIoDriver] drain_writes: {} pkts ({} bytes) sent",
-                pkt_count, total_bytes
-            );
         }
     }
 
@@ -699,9 +693,45 @@ impl RtcIoDriver {
                         }
                     }
                 }
-                // RTCP / data-channel messages flow through their own
-                // pipelines and are surfaced as `PcEvent`s instead.
-                RTCMessage::RtcpPacket(_, _) | RTCMessage::DataChannelMessage(_, _) => {}
+                // Detect RTCP PLI/FIR and trigger keyframe generation.
+                RTCMessage::RtcpPacket(_track_id, packets) => {
+                    self.handle_rtcp_for_keyframe(&packets);
+                }
+                RTCMessage::DataChannelMessage(_, _) => {}
+            }
+        }
+    }
+
+    /// Inspect decoded RTCP packets for PLI (Picture Loss Indication) or FIR
+    /// (Full Intra Request) and signal the video encoder to produce a keyframe.
+    ///
+    /// The SFU sends PLI on behalf of new subscribers who need a keyframe
+    /// to start decoding. Without this, the subscriber sees black screen
+    /// until the next periodic keyframe (up to 2 seconds).
+    fn handle_rtcp_for_keyframe(&self, packets: &[Box<dyn rtc_rtcp::Packet>]) {
+        use rtc_rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication;
+        use rtc_rtcp::payload_feedbacks::full_intra_request::FullIntraRequest;
+
+        for packet in packets {
+            if let Some(pli) = packet.as_any().downcast_ref::<PictureLossIndication>() {
+                if pli.media_ssrc != 0 {
+                    log::info!(
+                        "[RtcIoDriver] RTCP PLI detected for media ssrc={}",
+                        pli.media_ssrc
+                    );
+                    super::video_source::request_keyframe_for_ssrc(pli.media_ssrc);
+                }
+            }
+            if let Some(fir) = packet.as_any().downcast_ref::<FullIntraRequest>() {
+                for fir_entry in &fir.fir {
+                    if fir_entry.ssrc != 0 {
+                        log::info!(
+                            "[RtcIoDriver] RTCP FIR detected for ssrc={}",
+                            fir_entry.ssrc
+                        );
+                        super::video_source::request_keyframe_for_ssrc(fir_entry.ssrc);
+                    }
+                }
             }
         }
     }
@@ -769,6 +799,11 @@ impl RtcIoDriver {
             .rtc_pc
             .create_offer(Some(opts))
             .map_err(internal_err)?;
+        if log::log_enabled!(log::Level::Debug) {
+            for line in desc.sdp.lines().filter(|l| l.starts_with("m=") || l.starts_with("a=mid:") || l.starts_with("a=ssrc:")) {
+                log::debug!("[SDP-OFFER] {line}");
+            }
+        }
         Ok(rtc_desc_to_imp(desc))
     }
 
@@ -782,6 +817,11 @@ impl RtcIoDriver {
             .rtc_pc
             .create_answer(Some(RTCAnswerOptions::default()))
             .map_err(internal_err)?;
+        if log::log_enabled!(log::Level::Debug) {
+            for line in desc.sdp.lines().filter(|l| l.starts_with("m=") || l.starts_with("a=mid:")) {
+                log::debug!("[SDP-ANSWER] {line}");
+            }
+        }
         Ok(rtc_desc_to_imp(desc))
     }
 
@@ -803,13 +843,21 @@ impl RtcIoDriver {
 
     fn do_set_remote_description(&mut self, desc: ImpSessionDescription) -> Result<(), RtcError> {
         let rtc_desc = imp_desc_to_rtc(&desc)?;
+        if log::log_enabled!(log::Level::Debug) {
+            let lines: Vec<&str> = rtc_desc
+                .sdp
+                .lines()
+                .filter(|l| l.starts_with("m=") || l.starts_with("a=mid:"))
+                .collect();
+            log::debug!("[SDP-REMOTE] type={:?}, sections: {}", rtc_desc.sdp_type, lines.join(" | "));
+        }
         self.rtc_pc
             .set_remote_description(rtc_desc)
             .map_err(internal_err)
     }
 
     fn do_add_ice_candidate(&mut self, candidate: ImpIceCandidate) -> Result<(), RtcError> {
-        println!("[RtcIoDriver] add_remote_candidate: {}", candidate.candidate);
+        log::info!("[RtcIoDriver] add_remote_candidate: {}", candidate.candidate);
         let init = RTCIceCandidateInit {
             candidate: candidate.candidate.clone(),
             sdp_mid: Some(candidate.sdp_mid.clone()),
@@ -866,82 +914,56 @@ impl RtcIoDriver {
         );
         let kind = media_type_to_codec_kind(params.kind)?;
 
-        // For video tracks, register both H264 and VP8 as encodings so the
-        // SDP offer includes both codecs.  The *order* depends on whether
-        // this device actually has an H.264 hardware encoder:
-        //   - H264 available (e.g. Mate X5) → H264 first, VP8 fallback
-        //   - H264 unavailable                → VP8 first, H264 second
-        // This ensures the SDP always lists the actually-used codec first,
-        // preventing the SFU from seeing a codec mismatch at runtime.
+        // For video tracks, use a SINGLE H.264 encoding (no simulcast).
+        // The custom RTP pipeline encodes H.264 only and sends on one SSRC.
+        // Multiple encodings would be interpreted as simulcast by the rtc crate,
+        // causing SSRC mismatch between SDP-declared and actual RTP packets.
         let encodings: Vec<RTCRtpEncodingParameters> = if params.kind == MediaType::Video {
-            let h264_codec = RTCRtpCodec {
-                mime_type: "video/H264".to_owned(),
-                clock_rate: 90000,
-                channels: 0,
-                sdp_fmtp_line:
-                    "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=64001e"
-                        .to_owned(),
-                rtcp_feedback: Vec::new(),
-            };
-            let vp8_codec = RTCRtpCodec {
-                mime_type: "video/VP8".to_owned(),
-                clock_rate: 90000,
-                channels: 0,
-                sdp_fmtp_line: String::new(),
-                rtcp_feedback: Vec::new(),
-            };
-            let vp8_codec2 = RTCRtpCodec {
-                mime_type: "video/VP8".to_owned(),
-                clock_rate: 90000,
-                channels: 0,
-                sdp_fmtp_line: String::new(),
-                rtcp_feedback: Vec::new(),
-            };
-            let ssrc = if params.ssrc != 0 {
-                Some(params.ssrc)
-            } else {
-                None
-            };
-            let h264_enc = RTCRtpEncodingParameters {
-                rtp_coding_parameters: RTCRtpCodingParameters {
-                    ssrc,
-                    ..Default::default()
-                },
-                active: true,
-                codec: h264_codec,
-                ..Default::default()
-            };
-            let vp8_enc = RTCRtpEncodingParameters {
-                rtp_coding_parameters: RTCRtpCodingParameters::default(),
-                active: true,
-                codec: vp8_codec,
-                ..Default::default()
-            };
-            let vp8_enc_with_ssrc = RTCRtpEncodingParameters {
-                rtp_coding_parameters: RTCRtpCodingParameters {
-                    ssrc,
-                    ..Default::default()
-                },
-                active: true,
-                codec: vp8_codec2,
-                ..Default::default()
-            };
+            let ssrc = if params.ssrc != 0 { Some(params.ssrc) } else { None };
+
             #[cfg(any(target_env = "ohos", target_os = "android"))]
-            {
-            if H264Encoder::is_available() {
-                log::info!("do_add_track: H264 encoder available → H264 first in SDP");
-                vec![h264_enc, vp8_enc]
+            let codec = if H264Encoder::is_available() {
+                log::info!("do_add_track: H264 encoder available → single H264 encoding");
+                RTCRtpCodec {
+                    mime_type: "video/H264".to_owned(),
+                    clock_rate: 90000,
+                    channels: 0,
+                    sdp_fmtp_line:
+                        "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
+                            .to_owned(),
+                    rtcp_feedback: Vec::new(),
+                }
             } else {
-                log::info!("do_add_track: H264 encoder NOT available → VP8 first in SDP");
-                vec![vp8_enc, h264_enc]
-            }
-            }
+                log::info!("do_add_track: H264 NOT available → single VP8 encoding");
+                RTCRtpCodec {
+                    mime_type: "video/VP8".to_owned(),
+                    clock_rate: 90000,
+                    channels: 0,
+                    sdp_fmtp_line: String::new(),
+                    rtcp_feedback: Vec::new(),
+                }
+            };
             #[cfg(not(any(target_env = "ohos", target_os = "android")))]
-            {
-                // No H264 HW encoder on non-OHOS/non-Android → VP8 first
-                log::info!("do_add_track: non-OHOS/non-Android target → VP8 first in SDP");
-                vec![vp8_enc, h264_enc]
-            }
+            let codec = {
+                log::info!("do_add_track: non-OHOS target → single VP8 encoding");
+                RTCRtpCodec {
+                    mime_type: "video/VP8".to_owned(),
+                    clock_rate: 90000,
+                    channels: 0,
+                    sdp_fmtp_line: String::new(),
+                    rtcp_feedback: Vec::new(),
+                }
+            };
+
+            vec![RTCRtpEncodingParameters {
+                rtp_coding_parameters: RTCRtpCodingParameters {
+                    ssrc,
+                    ..Default::default()
+                },
+                active: true,
+                codec,
+                ..Default::default()
+            }]
         } else {
             let codec = RTCRtpCodec {
                 mime_type: params.codec_mime.clone(),
@@ -966,34 +988,27 @@ impl RtcIoDriver {
             params.track_id.clone(),
             params.label.clone(),
             kind,
-            encodings,
+            encodings.clone(),
         );
-        // 先尝试 add_track（复用 setRemoteDescription 创建的 transceiver，共享 ICE transport）
-        // 失败再 fallback 到 add_transceiver_from_track（创建新 transceiver）
-        let sender_id = match self.rtc_pc.add_track(track.clone()) {
-            Ok(sid) => {
-                log::info!("do_add_track: add_track succeeded, reused existing transceiver, sender={:?}", sid);
-                sid
-            }
-            Err(e) => {
-                log::warn!("do_add_track: add_track failed ({}), falling back to add_transceiver_from_track", e);
-                let init = RTCRtpTransceiverInit {
-                    direction: RTCRtpTransceiverDirection::Sendonly,
-                    streams: vec![],
-                    send_encodings: vec![],
-                };
-                let tid = self.rtc_pc.add_transceiver_from_track(track, Some(init)).map_err(|e| {
-                    log::error!("do_add_track: add_transceiver_from_track failed for {}: {}", params.track_id, e);
-                    internal_err(e)
-                })?;
-                self.rtc_pc.rtp_transceiver(tid)
-                    .and_then(|t| t.sender())
-                    .ok_or_else(|| RtcError {
-                        error_type: RtcErrorType::Internal,
-                        message: format!("do_add_track: no sender on transceiver for {}", params.track_id),
-                    })?
-            }
+        // Always create a NEW transceiver with our explicit encodings.
+        // Do NOT use rtc_pc.add_track() which reuses pre-existing transceivers
+        // that may carry stale VP8/simulcast settings from SDK initialization.
+        let init = RTCRtpTransceiverInit {
+            direction: RTCRtpTransceiverDirection::Sendonly,
+            streams: vec![],
+            send_encodings: encodings,
         };
+        let tid = self.rtc_pc.add_transceiver_from_track(track, Some(init)).map_err(|e| {
+            log::error!("do_add_track: add_transceiver_from_track failed for {}: {}", params.track_id, e);
+            internal_err(e)
+        })?;
+        let sender_id = self.rtc_pc.rtp_transceiver(tid)
+            .and_then(|t| t.sender())
+            .ok_or_else(|| RtcError {
+                error_type: RtcErrorType::Internal,
+                message: format!("do_add_track: no sender on transceiver for {}", params.track_id),
+            })?;
+        log::info!("do_add_track: created new transceiver {:?}, sender={:?}", tid, sender_id);
         
         // Get the actual SSRC assigned by the rtc crate
         let actual_ssrc = self.rtc_pc.rtp_sender(sender_id)
@@ -1077,6 +1092,35 @@ impl RtcIoDriver {
             log::warn!("write_rtp: unknown track id {track_id}");
             return;
         };
+
+        // ── Gate RTP until the remote answer covers this m-section ──────────
+        // pion (LiveKit SFU) permanently drops RTP streams whose SSRC arrives
+        // before the corresponding SDP negotiation completes ("Incoming
+        // unhandled RTP ssrc ... OnTrack will not be fired"), which then
+        // surfaces as a "publish time out". Hold packets back until the
+        // transceiver has a mid AND the remote answer contains that mid.
+        if !self.rtp_negotiated_tracks.contains(track_id) {
+            let tid = RTCRtpTransceiverId::from(sender_id);
+            let mid = self.rtc_pc.rtp_transceiver(tid).and_then(|t| t.mid().clone());
+            let negotiated = match (&mid, self.rtc_pc.remote_description()) {
+                (Some(mid), Some(remote)) => remote.sdp.contains(&format!("a=mid:{mid}")),
+                _ => false,
+            };
+            if !negotiated {
+                if self.rtp_gate_logged.insert(track_id.to_string()) {
+                    log::info!(
+                        "do_write_rtp: track {} not yet negotiated (mid={:?}), dropping RTP until remote answer arrives",
+                        track_id, mid
+                    );
+                }
+                return;
+            }
+            self.rtp_negotiated_tracks.insert(track_id.to_string());
+            log::info!(
+                "do_write_rtp: track {} negotiated (mid={:?}), RTP flow enabled",
+                track_id, mid
+            );
+        }
 
         // ── Resolve track label and actual SSRC from the rtc crate ──────────
         // The RtpSendPipeline is created *before* SDP negotiation, so its SSRC
@@ -1373,11 +1417,11 @@ fn map_rtc_event(evt: RTCPeerConnectionEvent) -> Vec<PcEvent> {
             vec![PcEvent::SignalingStateChange(map_signaling_state(state))]
         }
         RTCPeerConnectionEvent::OnIceConnectionStateChangeEvent(state) => {
-            println!("[RtcIoDriver] ICE event: IceConnectionStateChange => {:?}", state);
+            log::info!("[RtcIoDriver] ICE event: IceConnectionStateChange => {:?}", state);
             vec![PcEvent::IceConnectionStateChange(map_ice_conn_state(state))]
         }
         RTCPeerConnectionEvent::OnIceGatheringStateChangeEvent(state) => {
-            println!("[RtcIoDriver] ICE event: IceGatheringStateChange => {:?}", state);
+            log::info!("[RtcIoDriver] ICE event: IceGatheringStateChange => {:?}", state);
             vec![PcEvent::IceGatheringStateChange(map_ice_gathering_state(state))]
         }
         RTCPeerConnectionEvent::OnConnectionStateChangeEvent(state) => {

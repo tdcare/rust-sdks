@@ -490,6 +490,11 @@ impl PeerTransport {
         }
 
         let mut offer = self.peer_connection.create_offer(options).await?;
+        // Keep the pristine offer: the sans-IO rtc backend (OHOS/Android)
+        // validates set_local_description against the exact SDP produced by
+        // create_offer and rejects any munged variant ("new sdp does not
+        // match previous offer"). We retry with this copy on rejection.
+        let pristine_offer = offer.clone();
         let mut sdp = offer.to_string();
 
         if inner.single_pc_mode {
@@ -553,7 +558,16 @@ impl PeerTransport {
             }
         }
 
-        self.peer_connection.set_local_description(offer.clone()).await?;
+        if let Err(err) = self.peer_connection.set_local_description(offer.clone()).await {
+            // Munged SDP was rejected by the backend — fall back to the
+            // pristine offer so negotiation still proceeds (losing only the
+            // optional munging like x-google-start-bitrate).
+            log::warn!(
+                "set_local_description rejected munged offer ({err}), retrying with pristine offer"
+            );
+            offer = pristine_offer;
+            self.peer_connection.set_local_description(offer.clone()).await?;
+        }
 
         if let Some(handler) = self.on_offer_handler.lock().as_mut() {
             handler(offer);

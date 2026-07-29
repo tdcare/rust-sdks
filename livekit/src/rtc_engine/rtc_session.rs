@@ -1271,7 +1271,14 @@ impl SessionInner {
     ) -> EngineResult<()> {
         match event {
             proto::signal_response::Message::Answer(answer) => {
-                log::debug!("received publisher answer: {:?}", answer);
+                if log::log_enabled!(log::Level::Debug) {
+                    let ans_mids: Vec<&str> = answer
+                        .sdp
+                        .lines()
+                        .filter(|l| l.starts_with("m=") || l.starts_with("a=mid:"))
+                        .collect();
+                    log::debug!("[Signal] received publisher answer, sections: {}", ans_mids.join(" | "));
+                }
 
                 // Store mid_to_track_id mapping in single PC mode
                 if self.single_pc_mode && !answer.mid_to_track_id.is_empty() {
@@ -1532,7 +1539,13 @@ impl SessionInner {
                 // Send the publisher offer to the server
                 // The encoder is configured to use H264 Baseline Profile for maximum browser compatibility
                 let sdp_str = offer.to_string();
-                log::debug!("sending publisher offer: {:?}", sdp_str);
+                if log::log_enabled!(log::Level::Debug) {
+                    let mids: Vec<&str> = sdp_str
+                        .lines()
+                        .filter(|l| l.starts_with("m=") || l.starts_with("a=mid:"))
+                        .collect();
+                    log::debug!("[Signal] sending publisher offer, sections: {}", mids.join(" | "));
+                }
                 self.signal_client
                     .send(proto::signal_request::Message::Offer(proto::SessionDescription {
                         r#type: "offer".to_string(),
