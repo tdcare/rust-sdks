@@ -8,6 +8,11 @@ license = "Apache-2.0"
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+default = ["sonora-aec"]
+# Software AEC (sonora). Disable for armv7: --no-default-features
+sonora-aec = ["libwebrtc/sonora-aec"]
+
 [dependencies]
 # SmartWard P2P engine
 p2p = { path = "../p2p" }
@@ -16,7 +21,7 @@ livekit = { path = "../livekit", features = [
     "__rustls-tls",
     "rustls-tls-webpki-roots",
 ] }
-libwebrtc = { path = "../libwebrtc" }
+libwebrtc = { path = "../libwebrtc", default-features = false }
 livekit-runtime = { path = "../livekit-runtime" }
 
 # JNI

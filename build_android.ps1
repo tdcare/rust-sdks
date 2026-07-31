@@ -9,8 +9,9 @@
 #   3. 已安装 cargo-ndk: cargo install cargo-ndk
 #
 # 用法：
-#   .\build_android.ps1                        # 编译所有 target (arm64-v8a + x86_64)
+#   .\build_android.ps1                        # 编译所有 target (arm64-v8a + armeabi-v7a + x86_64)
 #   .\build_android.ps1 -Target arm64-v8a      # 仅编译 arm64-v8a
+#   .\build_android.ps1 -Target armeabi-v7a    # 仅编译 armeabi-v7a (32位 ARM)
 #   .\build_android.ps1 -Target x86_64         # 仅编译 x86_64
 #   .\build_android.ps1 -CheckOnly             # 仅做 cargo check（快速验证）
 #
@@ -20,7 +21,7 @@
 # ============================================================
 
 param(
-    [ValidateSet("arm64-v8a", "x86_64", "all")]
+    [ValidateSet("arm64-v8a", "armeabi-v7a", "x86_64", "all")]
     [string]$Target = "all",
     [switch]$CheckOnly
 )
@@ -58,6 +59,9 @@ $requiredClangs = @()
 if ($Target -eq "all" -or $Target -eq "arm64-v8a") {
     $requiredClangs += "$tc\aarch64-linux-android21-clang.cmd"
 }
+if ($Target -eq "all" -or $Target -eq "armeabi-v7a") {
+    $requiredClangs += "$tc\armv7a-linux-androideabi21-clang.cmd"
+}
 if ($Target -eq "all" -or $Target -eq "x86_64") {
     $requiredClangs += "$tc\x86_64-linux-android21-clang.cmd"
 }
@@ -76,6 +80,12 @@ $env:CXX_aarch64_linux_android = "$tc\aarch64-linux-android21-clang++.cmd"
 $env:AR_aarch64_linux_android  = "$tc\llvm-ar.exe"
 $env:CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER = "$tc\aarch64-linux-android21-clang.cmd"
 
+# armv7 (armeabi-v7a)
+$env:CC_armv7_linux_androideabi  = "$tc\armv7a-linux-androideabi21-clang.cmd"
+$env:CXX_armv7_linux_androideabi = "$tc\armv7a-linux-androideabi21-clang++.cmd"
+$env:AR_armv7_linux_androideabi  = "$tc\llvm-ar.exe"
+$env:CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER = "$tc\armv7a-linux-androideabi21-clang.cmd"
+
 # x86_64
 $env:CC_x86_64_linux_android  = "$tc\x86_64-linux-android21-clang.cmd"
 $env:CXX_x86_64_linux_android = "$tc\x86_64-linux-android21-clang++.cmd"
@@ -92,6 +102,7 @@ $env:PATH = "$tc;$cm;$env:PATH"
 Remove-Item Env:\RING_PREGENERATE_ASM -ErrorAction SilentlyContinue
 
 Write-Host "  CC (aarch64): $($env:CC_aarch64_linux_android)" -ForegroundColor Gray
+Write-Host "  CC (armv7):   $($env:CC_armv7_linux_androideabi)" -ForegroundColor Gray
 Write-Host "  CC (x86_64):  $($env:CC_x86_64_linux_android)" -ForegroundColor Gray
 Write-Host ""
 
@@ -106,6 +117,14 @@ if ($Target -eq "all" -or $Target -eq "arm64-v8a") {
         RustTarget  = "aarch64-linux-android"
         NdkAbi      = "arm64-v8a"
         JniLibsDir  = "arm64-v8a"
+    }
+}
+if ($Target -eq "all" -or $Target -eq "armeabi-v7a") {
+    $buildTargets += @{
+        Abi         = "armeabi-v7a"
+        RustTarget  = "armv7-linux-androideabi"
+        NdkAbi      = "armeabi-v7a"
+        JniLibsDir  = "armeabi-v7a"
     }
 }
 if ($Target -eq "all" -or $Target -eq "x86_64") {
@@ -153,9 +172,18 @@ foreach ($t in $buildTargets) {
     Write-Host "  这可能需要 5-15 分钟（首次编译）..." -ForegroundColor Gray
 
     if ($hasCargoNdk) {
-        cargo ndk -t $ndkAbi -o android-libs build --release -p livekit-jni-android
+        $featureFlags = ""
+        if ($abi -eq "armeabi-v7a") {
+            # armv7: disable sonora AEC (cpufeatures 0.3 unsupported)
+            $featureFlags = "--no-default-features"
+        }
+        cargo ndk -t $ndkAbi -o android-libs build --release -p livekit-jni-android $featureFlags.Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)
     } else {
-        cargo build --release -p livekit-jni-android --target $rustTarget
+        $featureFlags = ""
+        if ($abi -eq "armeabi-v7a") {
+            $featureFlags = "--no-default-features"
+        }
+        cargo build --release -p livekit-jni-android --target $rustTarget $featureFlags.Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)
     }
 
     if ($LASTEXITCODE -ne 0) {

@@ -74,12 +74,14 @@ struct EncoderState {
     send_fail_count: u64,
     /// --- sonora AEC (WebRTC AEC3 + NS + AGC) ---
     /// Created lazily when echo_cancellation is enabled.
+    #[cfg(feature = "sonora-aec")]
     apm: Option<sonora::AudioProcessing>,
     /// Far-end render reference buffer (speaker output i16 PCM).
     render_buffer: VecDeque<i16>,
     /// Accumulated 10ms AEC output before reassembly into 20ms Opus frames.
     aec_output: Vec<i16>,
     /// Stored AEC config for periodic filter reset.
+    #[cfg(feature = "sonora-aec")]
     aec_config: Option<sonora::Config>,
 }
 
@@ -118,9 +120,11 @@ impl NativeAudioSource {
                 encoded_chunks: Vec::with_capacity(MAX_OPUS_FRAME_BYTES * 4),
                 timestamp_ms: 0,
                 send_fail_count: 0,
+                #[cfg(feature = "sonora-aec")]
                 apm: None,
                 render_buffer: VecDeque::with_capacity(9600),
                 aec_output: Vec::with_capacity(960),
+                #[cfg(feature = "sonora-aec")]
                 aec_config: None,
             })),
             rtp_pipeline: Arc::new(Mutex::new(None)),
@@ -319,6 +323,8 @@ impl NativeAudioSource {
         }
 
         {
+            #[cfg(feature = "sonora-aec")]
+            {
             const CHUNK_SAMPLES: usize = 480; // 10ms at 48kHz mono
 
             // Take APM out of state to avoid borrow conflicts
@@ -382,6 +388,14 @@ impl NativeAudioSource {
                 let mut state = self.encoder_state.lock();
                 state.buffer.extend(frame.data.iter().copied());
             }
+            } // end cfg(feature = "sonora-aec")
+
+            #[cfg(not(feature = "sonora-aec"))]
+            {
+                // sonora AEC not available — pass through directly
+                let mut state = self.encoder_state.lock();
+                state.buffer.extend(frame.data.iter().copied());
+            }
         }
 
         self.encode_and_send();
@@ -395,6 +409,7 @@ impl NativeAudioSource {
 
     /// Enable software AEC (sonora WebRTC AEC3).
     /// Must be called before capture_frame to initialize the processing pipeline.
+    #[cfg(feature = "sonora-aec")]
     pub fn init_aec(&self) {
         let mut state = self.encoder_state.lock();
         if state.apm.is_some() {
@@ -419,6 +434,12 @@ impl NativeAudioSource {
         state.aec_config = Some(config);
         log::info!("[NativeAudioSource] AEC initialized: sonora AEC3 + NS + AGC, {}Hz, {}ch",
             self.sample_rate, self.num_channels);
+    }
+
+    /// No-op when sonora-aec feature is disabled (e.g. armv7 builds).
+    #[cfg(not(feature = "sonora-aec"))]
+    pub fn init_aec(&self) {
+        log::info!("[NativeAudioSource] AEC not available (sonora-aec feature disabled)");
     }
 
     /// Push far-end reference frame for AEC (speaker output audio).
