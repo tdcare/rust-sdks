@@ -15,6 +15,7 @@ use std::sync::Once;
 use jni::sys::{jint, JNI_VERSION_1_6};
 use jni::JavaVM;
 
+pub mod audio_source;
 pub mod audio_stream;
 pub mod native_window;
 pub mod p2p;

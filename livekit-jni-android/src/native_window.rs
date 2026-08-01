@@ -43,6 +43,7 @@ pub struct ARect {
 // Android pixel format constants
 const WINDOW_FORMAT_RGBA_8888: c_int = 1;
 
+#[link(name = "android")]
 extern "C" {
     fn ANativeWindow_fromSurface(
         env: *mut c_void,

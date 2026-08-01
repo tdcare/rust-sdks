@@ -994,7 +994,7 @@ impl RtcIoDriver {
         // Do NOT use rtc_pc.add_track() which reuses pre-existing transceivers
         // that may carry stale VP8/simulcast settings from SDK initialization.
         let init = RTCRtpTransceiverInit {
-            direction: RTCRtpTransceiverDirection::Sendonly,
+            direction: RTCRtpTransceiverDirection::Sendrecv,
             streams: vec![],
             send_encodings: encodings,
         };
@@ -1025,7 +1025,7 @@ impl RtcIoDriver {
         let connection_state = String::from("connected"); // TODO: expose connection_state from rtc
         let ice_state = String::from("Unknown"); // TODO: update to match rtc crate API
         log::info!(
-            "do_add_track: success track_id={} sender={} ssrc={} direction=Sendonly, PC state={:?}, ICE={}",
+            "do_add_track: success track_id={} sender={} ssrc={} direction=SendRecv, PC state={:?}, ICE={}",
             params.track_id, handle, actual_ssrc, connection_state, ice_state
         );
         Ok((handle, actual_ssrc))

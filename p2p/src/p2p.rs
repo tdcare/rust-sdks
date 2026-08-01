@@ -316,29 +316,58 @@ impl P2pManager {
             .as_ref()
             .ok_or_else(|| RtcError::Internal("no peer connection".into()))?;
 
-        // Add audio and video transceivers before creating offer
-        // to ensure SDP contains m= sections with ICE credentials
-        pc.add_transceiver_for_media(
-            MediaType::Audio,
-            RtpTransceiverInit {
-                direction: RtpTransceiverDirection::SendRecv,
-                stream_ids: vec![],
-                send_encodings: vec![],
-            },
-        )
-        .map_err(map_err)?;
+        let existing = pc.transceivers();
+        log::info!(
+            "[P2P] {:?} do_create_offer: existing transceivers={}",
+            handle,
+            existing.len()
+        );
 
-        pc.add_transceiver_for_media(
-            MediaType::Video,
-            RtpTransceiverInit {
-                direction: RtpTransceiverDirection::SendRecv,
-                stream_ids: vec![],
-                send_encodings: vec![],
-            },
-        )
-        .map_err(map_err)?;
+        // Only add media transceivers if none exist yet.
+        // If attachP2PAudio was already called (which creates a transceiver
+        // via add_transceiver_from_track in the OHOS driver), skip adding
+        // empty transceivers here to avoid duplicate m= lines in the Offer
+        // that would cause ErrRTPReceiverForSSRCTrackStreamNotFound later.
+        if existing.is_empty() {
+            pc.add_transceiver_for_media(
+                MediaType::Audio,
+                RtpTransceiverInit {
+                    direction: RtpTransceiverDirection::SendRecv,
+                    stream_ids: vec![],
+                    send_encodings: vec![],
+                },
+            )
+            .map_err(map_err)?;
+
+            pc.add_transceiver_for_media(
+                MediaType::Video,
+                RtpTransceiverInit {
+                    direction: RtpTransceiverDirection::SendRecv,
+                    stream_ids: vec![],
+                    send_encodings: vec![],
+                },
+            )
+            .map_err(map_err)?;
+
+            log::info!(
+                "[P2P] {:?} do_create_offer: created audio+video transceivers",
+                handle
+            );
+        } else {
+            log::info!(
+                "[P2P] {:?} do_create_offer: skipping transceiver creation (already have {})",
+                handle,
+                existing.len()
+            );
+        }
 
         let offer = block_on(pc.create_offer(OfferOptions::default())).map_err(map_err)?;
+        log::info!(
+            "[P2P] {:?} do_create_offer: Offer SDP ({} bytes) m= lines: {}",
+            handle,
+            offer.to_string().len(),
+            offer.to_string().lines().filter(|l| l.starts_with("m=")).collect::<Vec<_>>().join(" | ")
+        );
         block_on(pc.set_local_description(offer.clone())).map_err(map_err)?;
 
         Ok(from_lw_sdp(&offer))
@@ -447,20 +476,49 @@ impl P2pManager {
             .ok_or_else(|| RtcError::Internal("no peer connection".into()))?;
 
         let lw_sdp = to_lw_sdp(sdp)?;
-        // 预创建音频 transceiver (SendRecv)，避免后续 add_track 创建无 ICE 的新 transceiver
-        if pc.transceivers().is_empty() {
-            use libwebrtc::rtp_transceiver::{RtpTransceiverDirection, RtpTransceiverInit};
-            pc.add_transceiver_for_media(
-                libwebrtc::MediaType::Audio,
-                RtpTransceiverInit {
-                    direction: RtpTransceiverDirection::SendRecv,
-                    stream_ids: vec![],
-                    send_encodings: vec![],
-                },
-            )
-            .map_err(map_err)?;
+        let sig_before = pc.signaling_state();
+        let transceiver_count_before = pc.transceivers().len();
+
+        // Log the incoming SDP for diagnostics — extract m= lines and directions
+        {
+            let sdp_str = &lw_sdp.to_string();
+            let m_lines: Vec<String> = sdp_str
+                .lines()
+                .filter(|l| l.starts_with("m=") || l.starts_with("a=send") || l.starts_with("a=recv") || l.starts_with("a=inactive") || l.starts_with("a=mid:"))
+                .map(|l| l.to_string())
+                .collect();
+            log::info!(
+                "[P2P] {:?} do_set_remote_sdp: type={:?}, sig_state_before={:?}, existing_transceivers={}, SDP m/dir lines: [{}]",
+                handle,
+                sdp.sdp_type,
+                sig_before,
+                transceiver_count_before,
+                m_lines.join(", ")
+            );
         }
-        block_on(pc.set_remote_description(lw_sdp)).map_err(map_err)
+
+        // NOTE: We no longer pre-create an audio transceiver here.
+        // The ArkTS layer now calls attachP2PAudio BEFORE setRemoteSdp
+        // (on the callee side), so the track-bearing transceiver already
+        // exists and will be matched to the Offer's m= line by
+        // set_remote_description. This avoids duplicate m= lines
+        // that caused ErrRTPReceiverForSSRCTrackStreamNotFound.
+
+        let result = block_on(pc.set_remote_description(lw_sdp)).map_err(map_err);
+
+        let sig_after = pc.signaling_state();
+        let transceiver_count_after = pc.transceivers().len();
+        log::info!(
+            "[P2P] {:?} do_set_remote_sdp: result={:?}, sig_state={:?}→{:?}, transceivers={}→{}",
+            handle,
+            result.is_ok(),
+            sig_before,
+            sig_after,
+            transceiver_count_before,
+            transceiver_count_after
+        );
+
+        result
     }
 
     // ---- ICE 候选 ----
