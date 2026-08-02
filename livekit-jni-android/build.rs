@@ -20,12 +20,20 @@ fn main() {
         // Media NDK (AImageReader — future proofing)
         println!("cargo:rustc-link-lib=dylib=mediandk");
 
-        // Static libvpx (VP8 codec) — prebuilt with generic-gnu + fPIC,
-        // ABI-compatible across aarch64 Linux targets (OHOS/Android).
+        // Static libvpx (VP8 codec) — prebuilt with generic-gnu + fPIC。
+        // 按目标架构选择预编译目录：
+        //   - aarch64 (arm64-v8a): libvpx-build（OHOS/Android aarch64 通用）
+        //   - armv7 (armeabi-v7a): libvpx-build-armv7（build-libvpx-android-armv7.sh 构建）
+        let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+        let libvpx_dir_name = if target_arch == "arm" {
+            "libvpx-build-armv7"
+        } else {
+            "libvpx-build"
+        };
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
         let libvpx_dir = std::path::Path::new(&manifest_dir)
             .join("..")
-            .join("libvpx-build");
+            .join(libvpx_dir_name);
         if libvpx_dir.exists() {
             println!("cargo:rustc-link-search=native={}", libvpx_dir.display());
             println!("cargo:rustc-link-lib=static=vpx");
