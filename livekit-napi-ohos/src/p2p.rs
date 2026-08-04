@@ -12,7 +12,7 @@ use napi_derive_ohos::napi;
 use napi_ohos::bindgen_prelude::*;
 use parking_lot::Mutex;
 use p2p::{
-    EngineEvent, IceCandidate, P2pConfig, PeerHandle, RtcAudioTrack, SessionDescription,
+    AecConfig, EngineEvent, IceCandidate, P2pConfig, PeerHandle, RtcAudioTrack, SessionDescription,
     WebRtcEngine,
 };
 
@@ -298,6 +298,33 @@ impl LkSwcEngine {
             log::error!("attach_p2p_audio panicked: {}", msg);
             Error::from_reason(format!("attach_p2p_audio panicked: {}", msg))
         })?
+    }
+
+    /// Set AEC configuration for a P2P connection's audio source.
+    /// Must be called after `attach_p2p_audio`.
+    /// `config_json` — JSON string with AEC parameters (see AecConfig struct).
+    #[napi]
+    pub fn set_p2p_aec_config(&self, handle: i64, config_json: String) -> Result<()> {
+        let config: AecConfig = serde_json::from_str(&config_json).unwrap_or_default();
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = self.runtime.enter();
+            let engine = self.inner.lock();
+            engine
+                .set_p2p_aec_config(PeerHandle::from(handle as u64), &config)
+                .map_err(map_err)
+        }))
+        .map_err(|e| {
+            let msg = if let Some(s) = e.downcast_ref::<String>() {
+                s.clone()
+            } else if let Some(s) = e.downcast_ref::<&str>() {
+                s.to_string()
+            } else {
+                "Unknown panic".to_string()
+            };
+            log::error!("set_p2p_aec_config panicked: {}", msg);
+            Error::from_reason(format!("set_p2p_aec_config panicked: {}", msg))
+        })?;
+        Ok(())
     }
 
     /// 推送 PCM 音频帧到 P2P 音频源。

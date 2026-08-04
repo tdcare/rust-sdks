@@ -603,6 +603,23 @@ impl P2pManager {
         Ok(())
     }
 
+    /// Set AEC configuration for a P2P connection's audio source.
+    /// Must be called after [`attach_audio`] but before capture starts.
+    pub fn set_aec_config(&self, handle: PeerHandle, config: &libwebrtc::audio_source::AecConfig) -> Result<(), RtcError> {
+        let session = self
+            .sessions
+            .get(&handle)
+            .ok_or(RtcError::InvalidHandle)?;
+        let source = session
+            .audio_source
+            .as_ref()
+            .ok_or_else(|| RtcError::Internal("no audio source attached".into()))?;
+        source.init_aec_with_config(config);
+        log::info!("[P2P] {:?} AEC config set: delay={}ms, pre_gain={:.2}",
+            handle, config.stream_delay_ms, config.capture_pre_gain);
+        Ok(())
+    }
+
     /// 推送 PCM 音频帧到 P2P 音频源
     ///
     /// PCM 数据会被内部 Opus 编码器处理，然后通过 RTP 发送到对端。

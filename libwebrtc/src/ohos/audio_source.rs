@@ -32,7 +32,7 @@ use parking_lot::Mutex;
 
 use crate::{
     audio_frame::AudioFrame,
-    audio_source::AudioSourceOptions,
+    audio_source::{AudioSourceOptions, AecConfig},
     RtcError, RtcErrorType,
 };
 
@@ -407,38 +407,78 @@ impl NativeAudioSource {
         *self.options.lock() = options;
     }
 
-    /// Enable software AEC (sonora WebRTC AEC3).
-    /// Must be called before capture_frame to initialize the processing pipeline.
+    /// Enable software AEC (sonora WebRTC AEC3) with default parameters.
     #[cfg(feature = "sonora-aec")]
     pub fn init_aec(&self) {
+        self.init_aec_with_config(&AecConfig::default());
+    }
+
+    /// Enable software AEC with custom tunable parameters.
+    #[cfg(feature = "sonora-aec")]
+    pub fn init_aec_with_config(&self, aec_config: &AecConfig) {
         let mut state = self.encoder_state.lock();
         if state.apm.is_some() {
-            return; // Already initialized
+            return;
         }
-        let config = sonora::Config {
-            echo_canceller: Some(sonora::config::EchoCanceller::default()),
-            noise_suppression: Some(sonora::config::NoiseSuppression::default()),
-            gain_controller2: Some(sonora::config::GainController2::default()),
+        let ns_level = match aec_config.ns_level {
+            3 => sonora::config::NoiseSuppressionLevel::VeryHigh,
+            2 => sonora::config::NoiseSuppressionLevel::High,
+            1 => sonora::config::NoiseSuppressionLevel::Moderate,
+            _ => sonora::config::NoiseSuppressionLevel::Low,
+        };
+        let sonora_config = sonora::Config {
+            echo_canceller: Some(sonora::config::EchoCanceller {
+                enforce_high_pass_filtering: aec_config.ec_enforce_hpf,
+                ..Default::default()
+            }),
+            noise_suppression: Some(sonora::config::NoiseSuppression {
+                level: ns_level,
+                ..Default::default()
+            }),
+            gain_controller2: Some(sonora::config::GainController2 {
+                adaptive_digital: Some(sonora::config::AdaptiveDigital {
+                    headroom_db: aec_config.agc_headroom_db,
+                    max_gain_db: aec_config.agc_max_gain_db,
+                    initial_gain_db: aec_config.agc_initial_gain_db,
+                    max_gain_change_db_per_second: aec_config.agc_max_gain_change_db_per_sec,
+                    max_output_noise_level_dbfs: aec_config.agc_max_output_noise_dbfs,
+                }),
+                fixed_digital: sonora::config::FixedDigital {
+                    gain_db: aec_config.agc_fixed_gain_db,
+                },
+                ..Default::default()
+            }),
+            high_pass_filter: Some(sonora::config::HighPassFilter {
+                apply_in_full_band: aec_config.hpf_full_band,
+            }),
             ..Default::default()
         };
         let mut apm = sonora::AudioProcessing::builder()
-            .config(config.clone())
+            .config(sonora_config.clone())
             .capture_config(sonora::StreamConfig::new(self.sample_rate, self.num_channels as u16))
-            .render_config(sonora::StreamConfig::new(self.sample_rate, 1u16)) // render is mono
+            .render_config(sonora::StreamConfig::new(self.sample_rate, 1u16))
             .build();
-        // Light delay hint (10ms) for faster initial convergence; AEC3 will auto-track drift
-        let _ = apm.set_stream_delay_ms(10);
-        // Attenuate overly sensitive mic (0.5x = -6dB) to prevent echo overload
-        apm.set_capture_pre_gain(0.5);
+        let _ = apm.set_stream_delay_ms(aec_config.stream_delay_ms as i32);
+        apm.set_capture_pre_gain(aec_config.capture_pre_gain);
+        if (aec_config.capture_post_gain - 1.0).abs() > 0.001 {
+            apm.set_capture_post_gain(aec_config.capture_post_gain);
+        }
         state.apm = Some(apm);
-        state.aec_config = Some(config);
-        log::info!("[NativeAudioSource] AEC initialized: sonora AEC3 + NS + AGC, {}Hz, {}ch",
+        state.aec_config = Some(sonora_config);
+        log::info!("[NativeAudioSource] AEC initialized: delay={}ms, pre_gain={:.2}, post_gain={:.2}, ns={}, {}Hz, {}ch",
+            aec_config.stream_delay_ms, aec_config.capture_pre_gain, aec_config.capture_post_gain,
+            aec_config.ns_level,
             self.sample_rate, self.num_channels);
     }
 
     /// No-op when sonora-aec feature is disabled (e.g. armv7 builds).
     #[cfg(not(feature = "sonora-aec"))]
     pub fn init_aec(&self) {
+        log::info!("[NativeAudioSource] AEC not available (sonora-aec feature disabled)");
+    }
+
+    #[cfg(not(feature = "sonora-aec"))]
+    pub fn init_aec_with_config(&self, _config: &AecConfig) {
         log::info!("[NativeAudioSource] AEC not available (sonora-aec feature disabled)");
     }
 

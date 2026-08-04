@@ -25,6 +25,67 @@ pub struct AudioSourceOptions {
     pub auto_gain_control: bool,
 }
 
+/// Software AEC (sonora AEC3) tunable parameters.
+/// Can be deserialized from JSON for cross-boundary transport.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(default)]
+pub struct AecConfig {
+    // ── Runtime tunables ──
+    /// Stream delay hint in ms. Default: 20.
+    pub stream_delay_ms: u32,
+    /// Capture pre-gain (linear). 1.0=0dB, 0.5=-6dB, 0.25=-12dB. Default: 0.25.
+    pub capture_pre_gain: f32,
+    /// Capture post-gain after AEC (linear). 1.0=0dB. Default: 1.0.
+    pub capture_post_gain: f32,
+
+    // ── EchoCanceller ──
+    /// Enforce high-pass filtering in the AEC path. Default: false.
+    pub ec_enforce_hpf: bool,
+
+    // ── NoiseSuppression ──
+    /// NS level: 0=Low, 1=Moderate, 2=High, 3=VeryHigh. Default: 1 (Moderate).
+    pub ns_level: u8,
+
+    // ── GainController2 AdaptiveDigital ──
+    /// AGC headroom in dB. Default: 6.0.
+    pub agc_headroom_db: f32,
+    /// AGC max gain in dB. Default: 30.0.
+    pub agc_max_gain_db: f32,
+    /// AGC initial gain in dB. Default: 0.0.
+    pub agc_initial_gain_db: f32,
+    /// AGC max gain change per second in dB. Default: 6.0.
+    pub agc_max_gain_change_db_per_sec: f32,
+    /// AGC max output noise level in dBFS. Default: -50.0.
+    pub agc_max_output_noise_dbfs: f32,
+
+    // ── GainController2 FixedDigital ──
+    /// Fixed digital gain in dB. 0.0 = no change. Default: 0.0.
+    pub agc_fixed_gain_db: f32,
+
+    // ── HighPassFilter ──
+    /// Apply high-pass filter in full band. Default: true.
+    pub hpf_full_band: bool,
+}
+
+impl Default for AecConfig {
+    fn default() -> Self {
+        Self {
+            stream_delay_ms: 20,
+            capture_pre_gain: 0.25,
+            capture_post_gain: 1.0,
+            ec_enforce_hpf: false,
+            ns_level: 1,
+            agc_headroom_db: 6.0,
+            agc_max_gain_db: 30.0,
+            agc_initial_gain_db: 0.0,
+            agc_max_gain_change_db_per_sec: 6.0,
+            agc_max_output_noise_dbfs: -50.0,
+            agc_fixed_gain_db: 0.0,
+            hpf_full_band: true,
+        }
+    }
+}
+
 /// Audio source type for creating audio tracks.
 ///
 /// Choose the appropriate source based on your use case:
@@ -211,9 +272,14 @@ pub mod native {
             self.handle.num_channels()
         }
 
-        /// Enable software AEC (sonora WebRTC AEC3).
+        /// Enable software AEC (sonora WebRTC AEC3) with default parameters.
         pub fn init_aec(&self) {
             self.handle.init_aec()
+        }
+
+        /// Enable software AEC with custom tunable parameters.
+        pub fn init_aec_with_config(&self, config: &AecConfig) {
+            self.handle.init_aec_with_config(config)
         }
 
         /// Push far-end reference frame for AEC.

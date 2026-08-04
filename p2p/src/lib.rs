@@ -52,6 +52,7 @@ mod ffi;
 
 pub use types::*;
 pub use libwebrtc::audio_track::RtcAudioTrack;
+pub use libwebrtc::audio_source::AecConfig;
 
 use p2p::P2pManager;
 
@@ -142,6 +143,12 @@ impl WebRtcEngine {
     /// 创建音频源并添加到 PeerConnection，之后可通过 [`push_p2p_audio_frame`] 推送 PCM 数据。
     pub fn attach_p2p_audio(&mut self, handle: PeerHandle) -> Result<(), RtcError> {
         self.p2p.attach_audio(handle)
+    }
+
+    /// Set AEC configuration for a P2P connection's audio source.
+    /// Must be called after [`attach_p2p_audio`].
+    pub fn set_p2p_aec_config(&self, handle: PeerHandle, config: &libwebrtc::audio_source::AecConfig) -> Result<(), RtcError> {
+        self.p2p.set_aec_config(handle, config)
     }
 
     /// 推送 PCM 音频帧到 P2P 音频源

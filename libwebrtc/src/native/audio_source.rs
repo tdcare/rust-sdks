@@ -16,7 +16,7 @@ use cxx::SharedPtr;
 use tokio::sync::oneshot;
 use webrtc_sys::audio_track as sys_at;
 
-use crate::{audio_frame::AudioFrame, audio_source::AudioSourceOptions, RtcError, RtcErrorType};
+use crate::{audio_frame::AudioFrame, audio_source::{AudioSourceOptions, AecConfig}, RtcError, RtcErrorType};
 
 #[derive(Clone)]
 pub struct NativeAudioSource {
@@ -87,6 +87,9 @@ impl NativeAudioSource {
 
     /// Stub: no-op on non-OHOS platforms.
     pub fn init_aec(&self) {}
+
+    /// Stub: no-op on non-OHOS platforms.
+    pub fn init_aec_with_config(&self, _config: &AecConfig) {}
 
     /// Stub: no-op on non-OHOS platforms.
     pub fn push_reference_frame(&self, _data: &[i16]) {}

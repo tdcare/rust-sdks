@@ -12,7 +12,7 @@ use jni::sys::{jbyteArray, jint, jlong, jstring};
 use jni::JNIEnv;
 use parking_lot::Mutex;
 use p2p::{
-    EngineEvent, IceCandidate, P2pConfig, PeerHandle, RtcAudioTrack, SessionDescription,
+    AecConfig, EngineEvent, IceCandidate, P2pConfig, PeerHandle, RtcAudioTrack, SessionDescription,
     WebRtcEngine,
 };
 
@@ -300,6 +300,35 @@ pub extern "C" fn Java_cn_tdcare_smartward_rust_p2p_SwcEngine_nativeAttachP2pAud
             throw_runtime_exception(&mut env, &format!("attachP2pAudio failed: {}", e));
         } else {
             log::info!("[JNI] attachP2pAudio: handle={}", handle);
+        }
+    });
+}
+
+/// Set AEC configuration for a P2P connection's audio source.
+/// Must be called after nativeAttachP2pAudio.
+/// `config_json` — JSON string with AEC parameters (see AecConfig struct).
+#[allow(non_snake_case)]
+#[no_mangle]
+pub extern "C" fn Java_cn_tdcare_smartward_rust_p2p_SwcEngine_nativeSetP2pAecConfig(
+    mut env: JNIEnv,
+    _class: JClass,
+    engine_ptr: jlong,
+    handle: jlong,
+    config_json: JString,
+) {
+    let json_str = jstring_to_rust(&mut env, &config_json).unwrap_or_default();
+    let config: AecConfig = serde_json::from_str(&json_str).unwrap_or_default();
+
+    catch_panic((), || {
+        let state = unsafe { &*(engine_ptr as *const EngineState) };
+        let _guard = state.runtime.enter();
+
+        let engine = state.engine.lock();
+        if let Err(e) = engine.set_p2p_aec_config(PeerHandle::from(handle as u64), &config) {
+            log::error!("[JNI] setP2pAecConfig error: {}", e);
+        } else {
+            log::info!("[JNI] setP2pAecConfig: handle={}, delay={}ms, pre_gain={:.2}, post_gain={:.2}, ns_level={}",
+                handle, config.stream_delay_ms, config.capture_pre_gain, config.capture_post_gain, config.ns_level);
         }
     });
 }
